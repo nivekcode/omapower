@@ -22,6 +22,7 @@ Item {
   property bool effectEnabled: true
   property bool socketReady: false
   property int acceptedBursts: 0
+  property var pendingBurst: null
 
   signal burstRequested(var event)
   signal settingsReloaded()
@@ -101,10 +102,25 @@ Item {
     }
   }
 
-  function requestBurst(source, requireTerminal, overridePosition) {
+  function requestBurst(source, requireTerminal, overridePosition, retryCount) {
     if (!effectEnabled || !settings.particlesEnabled) return "disabled"
     var target = focusedTarget(requireTerminal)
-    if (!target) return requireTerminal ? "not-terminal" : "no-window"
+    if (!target) {
+      var top = Hyprland.activeToplevel
+      var attempts = Number(retryCount || 0)
+      if (top && !top.lastIpcObject && attempts < 2) {
+        pendingBurst = {
+          source: source,
+          requireTerminal: requireTerminal,
+          overridePosition: overridePosition,
+          retryCount: attempts + 1
+        }
+        Hyprland.refreshToplevels()
+        geometryRetry.restart()
+        return "refreshing"
+      }
+      return requireTerminal ? "not-terminal" : "no-window"
+    }
     if (overridePosition && isFinite(Number(overridePosition.x)) && isFinite(Number(overridePosition.y))) {
       target.x = Number(overridePosition.x)
       target.y = Number(overridePosition.y)
@@ -128,6 +144,15 @@ Item {
     if (activityMonitor.isIdle) return
     if (settings.inputMode !== "activity" && settings.inputMode !== "both") return
     requestBurst("wayland-activity", true, null)
+  }
+
+  function refreshForHyprlandEvent(event) {
+    var name = String(event && event.name ? event.name : "")
+    if (name.indexOf("activewindow") === 0 || name.indexOf("openwindow") === 0
+        || name.indexOf("movewindow") === 0 || name === "focusedmon") {
+      Hyprland.refreshToplevels()
+      if (name === "focusedmon") Hyprland.refreshMonitors()
+    }
   }
 
   function setEnabled(enabled) {
@@ -170,6 +195,23 @@ Item {
     target: root.shell
     ignoreUnknownSignals: true
     function onShellConfigChanged() { root.reloadSettings() }
+  }
+
+  Connections {
+    target: Hyprland
+    function onRawEvent(event) { root.refreshForHyprlandEvent(event) }
+  }
+
+  Timer {
+    id: geometryRetry
+    interval: 60
+    repeat: false
+    onTriggered: {
+      var pending = root.pendingBurst
+      root.pendingBurst = null
+      if (pending)
+        root.requestBurst(pending.source, pending.requireTerminal, pending.overridePosition, pending.retryCount)
+    }
   }
 
   SocketServer {
@@ -220,6 +262,8 @@ Item {
 
   Component.onCompleted: {
     reloadSettings()
+    Hyprland.refreshMonitors()
+    Hyprland.refreshToplevels()
     socketCleanup.running = true
   }
 }
