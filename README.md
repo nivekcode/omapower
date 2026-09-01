@@ -127,8 +127,9 @@ cannot access Foot's caret. OmaPower's
 Bash integration wraps Readline's printable self-insert action. For each typed
 character, it asks Foot for its standard cursor-position report and sends only
 four numbers: cursor row, cursor column, terminal rows, and terminal columns.
-Foot reports the post-insert cursor cell, so the overlay uses that physical
-position directly, immediately after the newly typed character.
+Bash parks the terminal at the start of the input while the callback runs. The
+integration combines that physical row with the prompt's display width and
+Readline's post-insert cursor index to recover the visible cursor cell.
 It does not send the character or command line. The installer switches OmaPower
 to `socket` mode so fast typing cannot be merged by Wayland's idle monitor.
 
