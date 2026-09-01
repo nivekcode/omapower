@@ -202,6 +202,19 @@ Shake affects the particle field, not the terminal window. Moving a tiled
 Hyprland client for every key can disturb layout and leave geometry behind after
 an interrupted animation, so OmaPower does not do that.
 
+## Motion profile
+
+The default burst uses a narrow upward cone rather than a radial explosion.
+Each spark has frame-rate-independent velocity, light drag, gravity, a short
+velocity trail, exponential alpha decay, and a final eased fade. A 96 ms contact
+flash makes the keystroke register before the particles travel. Particle cores
+stay square and align to physical pixels so the effect remains sharp at small
+sizes.
+
+All active particles on a monitor share one vsync-driven framebuffer canvas.
+The overlay stays mapped while OmaPower is enabled, which avoids layer-surface
+creation on the first character after an idle period.
+
 ## Privacy and performance
 
 The Wayland activity monitor exposes no key or pointer data. The socket accepts
@@ -219,7 +232,7 @@ region and never requests keyboard focus.
 
 ```bash
 omarchy plugin validate .
-qmllint HyperPower.qml HyperPowerService.qml HyperPowerOverlay.qml HyperPowerParticle.qml
+qmllint HyperPower.qml HyperPowerService.qml HyperPowerOverlay.qml HyperPowerCanvas.qml
 shellcheck scripts/omapowerctl
 ```
 

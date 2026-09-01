@@ -25,12 +25,6 @@ Item {
   function toggle() { return service ? service.setEnabled(!service.effectEnabled) : "no-service" }
   function reloadSettings() { return service ? service.reloadSettings() : "no-service" }
 
-  function colorFor(mode, customColor) {
-    if (mode === "rainbow") return Qt.hsla(Math.random(), 0.82, 0.64, 1)
-    if (mode === "fixed") return customColor
-    return Color.accent
-  }
-
   function emitBurst(layer, event) {
     if (!opened || !event || !event.settings || String(layer.screen.name) !== String(event.screenName)) return
     var settings = event.settings
@@ -55,7 +49,7 @@ Item {
       property alias particleField: field
 
       screen: modelData
-      visible: root.opened && root.activeParticles > 0
+      visible: root.opened
       anchors { top: true; right: true; bottom: true; left: true }
       color: "transparent"
       exclusionMode: ExclusionMode.Ignore
