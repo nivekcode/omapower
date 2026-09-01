@@ -25,6 +25,7 @@ Item {
   property int settingsReloadAttempts: 0
   property var pendingBurst: null
   property var caretPositions: ({})
+  property var lastBurstTarget: null
 
   signal burstRequested(var event)
   signal settingsReloaded()
@@ -106,7 +107,7 @@ Item {
     return key ? caretPositions[key] || null : null
   }
 
-  function setCaret(rowValue, columnValue, rowsValue, columnsValue, anchorValue) {
+  function setCaret(rowValue, columnValue, rowsValue, columnsValue, anchorValue, cellHeightValue, cellWidthValue) {
     var top = activeToplevel()
     var ipc = top && top.lastIpcObject ? top.lastIpcObject : null
     if (!top || !ipc || !isSupportedTerminal(top, ipc)) return "not-terminal"
@@ -114,7 +115,11 @@ Item {
     var column = Math.max(1, Math.round(Number(columnValue)))
     var rows = Math.max(1, Math.round(Number(rowsValue)))
     var columns = Math.max(1, Math.round(Number(columnsValue)))
+    var cellHeight = Math.max(0, Number(cellHeightValue || 0))
+    var cellWidth = Math.max(0, Number(cellWidthValue || 0))
     if (!isFinite(row) || !isFinite(column) || !isFinite(rows) || !isFinite(columns)) return "invalid"
+    if (!isFinite(cellHeight)) cellHeight = 0
+    if (!isFinite(cellWidth)) cellWidth = 0
     var key = windowKey(top, ipc)
     if (!key) return "no-window"
     var next = ({})
@@ -125,6 +130,8 @@ Item {
       rows: rows,
       columns: columns,
       anchor: String(anchorValue || "cursor"),
+      cellHeight: cellHeight,
+      cellWidth: cellWidth,
       updatedAt: Date.now()
     }
     caretPositions = next
@@ -151,6 +158,9 @@ Item {
       column: nextColumn,
       rows: current.rows,
       columns: current.columns,
+      anchor: current.anchor,
+      cellHeight: current.cellHeight,
+      cellWidth: current.cellWidth,
       updatedAt: Date.now()
     }
     caretPositions = next
@@ -169,22 +179,45 @@ Item {
     var topY = Number(at[1])
     var width = Number(size[0])
     var height = Number(size[1])
+    var screen = screenForPoint(left + width / 2, topY + height / 2)
+    if (!screen) return null
+    var monitor = top.monitor || Hyprland.monitorFor(screen)
+    var outputScale = Number(monitor && monitor.scale ? monitor.scale : 0)
+    if (!isFinite(outputScale) || outputScale <= 0) outputScale = 0
     var caret = caretFor(top, ipc)
     var x = left + width * settings.originXRatio
     var y = topY + height - settings.originBottomOffset
     var positionMode = "window-approximation"
+    var cursorMetrics = null
     if (caret) {
-      var gridWidth = Math.max(1, width - settings.terminalPaddingX * 2)
-      var gridHeight = Math.max(1, height - settings.terminalPaddingY * 2)
-      var cellWidth = gridWidth / caret.columns
-      var cellHeight = gridHeight / caret.rows
+      var availableWidth = Math.max(1, width - settings.terminalPaddingX * 2)
+      var availableHeight = Math.max(1, height - settings.terminalPaddingY * 2)
+      var cellWidth = availableWidth / caret.columns
+      var cellHeight = availableHeight / caret.rows
+      var metricScale = 0
+      if (caret.cellWidth > 0 && caret.cellHeight > 0) {
+        metricScale = outputScale > 0
+          ? outputScale
+          : Math.max(1, caret.cellWidth * caret.columns / availableWidth)
+        cellWidth = caret.cellWidth / metricScale
+        cellHeight = caret.cellHeight / metricScale
+      }
+      var gridWidth = cellWidth * caret.columns
+      var gridHeight = cellHeight * caret.rows
+      var gridPaddingX = Math.min(settings.terminalPaddingX, Math.max(0, width - gridWidth))
+      var gridPaddingY = Math.min(settings.terminalPaddingY, Math.max(0, height - gridHeight))
       var columnOffset = caret.anchor === "character" ? 0.5 : 0
-      x = left + settings.terminalPaddingX + (caret.column - 1 + columnOffset) * cellWidth
-      y = topY + settings.terminalPaddingY + (caret.row - 0.5) * cellHeight
-      positionMode = "terminal-grid"
+      x = left + gridPaddingX + (caret.column - 1 + columnOffset) * cellWidth
+      y = topY + gridPaddingY + (caret.row - 0.5) * cellHeight
+      positionMode = metricScale > 0 ? "terminal-metrics" : "terminal-grid"
+      cursorMetrics = {
+        scale: metricScale,
+        cellWidth: cellWidth,
+        cellHeight: cellHeight,
+        paddingX: gridPaddingX,
+        paddingY: gridPaddingY
+      }
     }
-    var screen = screenForPoint(left + width / 2, topY + height / 2)
-    if (!screen) return null
     return {
       screenName: String(screen.name),
       x: x,
@@ -193,8 +226,9 @@ Item {
       windowY: topY,
       windowWidth: width,
       windowHeight: height,
-      approximate: true,
-      positionMode: positionMode
+      approximate: positionMode !== "terminal-metrics",
+      positionMode: positionMode,
+      cursorMetrics: cursorMetrics
     }
   }
 
@@ -224,6 +258,18 @@ Item {
     }
     target.source = String(source || "unknown")
     target.settings = settings
+    lastBurstTarget = {
+      source: target.source,
+      screenName: target.screenName,
+      x: target.x,
+      y: target.y,
+      windowX: target.windowX,
+      windowY: target.windowY,
+      windowWidth: target.windowWidth,
+      windowHeight: target.windowHeight,
+      positionMode: target.positionMode,
+      cursorMetrics: target.cursorMetrics
+    }
     acceptedBursts += 1
     burstRequested(target)
     return "ok"
@@ -236,9 +282,9 @@ Item {
       setCaret(fields[1], fields[2], fields[3], fields[4], "cursor")
       return
     }
-    if (fields[0] === "type" && fields.length === 5) {
+    if (fields[0] === "type" && (fields.length === 5 || fields.length === 7)) {
       if (settings.inputMode !== "socket" && settings.inputMode !== "both") return
-      if (setCaret(fields[1], fields[2], fields[3], fields[4], "cursor") === "ok")
+      if (setCaret(fields[1], fields[2], fields[3], fields[4], "cursor", fields[5], fields[6]) === "ok")
         requestBurst("bash-readline", true, null)
       return
     }
@@ -258,7 +304,8 @@ Item {
   function refreshForHyprlandEvent(event) {
     var name = String(event && event.name ? event.name : "")
     if (name.indexOf("activewindow") === 0 || name.indexOf("openwindow") === 0
-        || name.indexOf("movewindow") === 0 || name === "focusedmon") {
+        || name.indexOf("movewindow") === 0 || name.indexOf("resizewindow") === 0
+        || name === "focusedmon") {
       Hyprland.refreshToplevels()
       if (name === "focusedmon") Hyprland.refreshMonitors()
     }
@@ -315,7 +362,9 @@ Item {
       at: ipc && ipc.at ? [Number(ipc.at[0]), Number(ipc.at[1])] : [],
       size: ipc && ipc.size ? [Number(ipc.size[0]), Number(ipc.size[1])] : [],
       screens: screens,
-      caret: caretFor(top, ipc)
+      caret: caretFor(top, ipc),
+      target: focusedTarget(false),
+      lastBurstTarget: lastBurstTarget
     }
   }
 
@@ -396,6 +445,7 @@ Item {
         enabled: root.effectEnabled,
         socket: root.socketPath,
         acceptedBursts: root.acceptedBursts,
+        lastBurstTarget: root.lastBurstTarget,
         settings: root.settings
       })
     }

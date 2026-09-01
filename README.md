@@ -9,7 +9,7 @@ Omarchy shell. It runs inside the existing `omarchy-shell` process and uses the
 active Omarchy accent color by default.
 
 The plugin targets Omarchy 4.0.1's schema version 1 plugin API. The current
-plugin release is 0.3.0.
+plugin release is 0.4.0.
 
 ## What works
 
@@ -125,8 +125,9 @@ disabled. Manual bursts still work.
 the terminal component's `cursorFrame.x/y` directly. An external Wayland overlay
 cannot access Foot's caret. OmaPower's
 Bash integration wraps Readline's printable self-insert action. For each typed
-character, it asks Foot for its standard cursor-position report and sends only
-four numbers: cursor row, cursor column, terminal rows, and terminal columns.
+character, it asks Foot for its standard cursor and cell-metric reports and
+sends only six numbers: cursor row, cursor column, terminal rows, terminal
+columns, cell height, and cell width.
 Bash parks the terminal at the start of the input while the callback runs. The
 integration combines that physical row with the prompt's display width and
 Readline's post-insert cursor index to recover the visible cursor cell.
@@ -140,8 +141,9 @@ Install it once, then open a new terminal:
 ```
 
 Readline invokes the hook after inserting a printable character. Foot reports
-the physical grid cell where that character is being drawn, so backspacing or
-moving the cursor before typing does not accumulate positioning error. The hook
+its physical cell metrics, and the overlay converts them through the live client
+buffer scale. Backspacing or moving the cursor before typing does not accumulate
+positioning error. The hook
 does not emit particles for deletion, completion, bracketed paste, or non-ASCII
 input. It never sends the command line or typed character.
 
@@ -174,15 +176,15 @@ Settings persist in the plugin's entry in `~/.config/omarchy/shell.json`. The
 | Setting | Default | Range or values |
 | --- | ---: | --- |
 | `particlesEnabled` | `true` | boolean |
-| `particleCount` | `7` | 1 to 24 |
-| `particleLifetime` | `720` | 120 to 2000 ms |
-| `particleSize` | `3` | 1 to 18 logical px |
-| `particleSpread` | `105` | 15 to 500 logical px |
-| `initialVelocity` | `210` | 20 to 800 |
-| `gravity` | `340` | -500 to 1400 |
-| `opacity` | `1` | 0.05 to 1 |
-| `maximumActiveParticles` | `220` | 8 to 500 |
-| `particleTrail` | `true` | boolean |
+| `particleCount` | `6` | 1 to 24 |
+| `particleLifetime` | `500` | 120 to 2000 ms |
+| `particleSize` | `2.5` | 1 to 18 logical px |
+| `particleSpread` | `90` | 15 to 500 logical px |
+| `initialVelocity` | `175` | 20 to 800 |
+| `gravity` | `290` | -500 to 1400 |
+| `opacity` | `0.95` | 0.05 to 1 |
+| `maximumActiveParticles` | `160` | 8 to 500 |
+| `particleTrail` | `false` | boolean |
 | `cursorFlash` | `true` | boolean |
 | `shakeEnabled` | `false` | boolean |
 | `shakeStrength` | `2` | 0 to 12 logical px |
@@ -210,12 +212,13 @@ an interrupted animation, so OmaPower does not do that.
 
 ## Motion profile
 
-The default burst uses a narrow upward cone rather than a radial explosion.
-Each spark has frame-rate-independent velocity, light drag, gravity, a short
-velocity trail, exponential alpha decay, and a final eased fade. A 96 ms contact
-flash makes the keystroke register before the particles travel. Particle cores
-stay square and align to physical pixels so the effect remains sharp at small
-sizes.
+The default burst uses a narrow, balanced upward cone rather than a radial
+explosion. Every spark begins at the exact emitter coordinate, then uses
+frame-rate-independent velocity, drag, gravity, exponential alpha decay, and a
+final eased fade. A 72 ms cursor pulse makes the keystroke register before the
+particles travel. Particle cores stay square and align to physical pixels so
+the effect remains sharp at small sizes. Trails remain available as an option
+but are off by default.
 
 All active particles on a monitor share one vsync-driven framebuffer canvas.
 The overlay stays mapped while OmaPower is enabled, which avoids layer-surface

@@ -36,18 +36,19 @@ Canvas {
     var next = particles.slice()
     var spreadScale = settings.particleSpread / 130
     for (var i = 0; i < count; i++) {
-      var speed = settings.initialVelocity * (0.82 + Math.random() * 0.36)
-      var horizontalBias = (Math.random() * 2 - 1)
+      var speed = settings.initialVelocity * (0.88 + Math.random() * 0.24)
+      var distribution = count <= 1 ? 0 : i / (count - 1) * 2 - 1
+      var horizontalBias = Math.max(-1, Math.min(1, distribution + (Math.random() - 0.5) * 0.24))
       next.push({
-        x: x + (Math.random() - 0.5) * 2.2,
-        y: y + (Math.random() - 0.5) * 1.6,
-        vx: horizontalBias * speed * 0.38 * spreadScale,
-        vy: -speed * (0.78 + Math.random() * 0.42),
+        x: x,
+        y: y,
+        vx: horizontalBias * speed * 0.44 * spreadScale,
+        vy: -speed * (0.76 + Math.random() * 0.24),
         gravity: settings.gravity,
-        drag: 0.986,
+        drag: 0.976,
         age: 0,
-        life: settings.particleLifetime * (0.84 + Math.random() * 0.28),
-        size: settings.particleSize * (0.68 + Math.random() * 0.48),
+        life: settings.particleLifetime * (0.88 + Math.random() * 0.24),
+        size: settings.particleSize * (0.78 + Math.random() * 0.36),
         opacity: settings.opacity,
         color: particleColor(settings, accentColor, i, count),
         trail: settings.particleTrail
@@ -62,7 +63,7 @@ Canvas {
         x: x,
         y: y,
         age: 0,
-        life: 96,
+        life: 72,
         color: particleColor(settings, accentColor, count, count + 1),
         opacity: settings.opacity
       })
@@ -117,22 +118,11 @@ Canvas {
     for (var flashIndex = 0; flashIndex < flashes.length; flashIndex++) {
       var flash = flashes[flashIndex]
       var flashProgress = flash.age / flash.life
-      var flashFade = Math.pow(1 - flashProgress, 2.4) * flash.opacity
-      var ray = 2.5 + 7 * smoothstep(0, 1, flashProgress)
-
-      context.strokeStyle = flash.color
-      context.lineWidth = 1
-      context.globalAlpha = flashFade * 0.72
-      context.beginPath()
-      context.moveTo(Math.round(flash.x - ray), Math.round(flash.y) + 0.5)
-      context.lineTo(Math.round(flash.x + ray), Math.round(flash.y) + 0.5)
-      context.moveTo(Math.round(flash.x) + 0.5, Math.round(flash.y - ray * 0.72))
-      context.lineTo(Math.round(flash.x) + 0.5, Math.round(flash.y + ray * 0.72))
-      context.stroke()
-
+      var flashFade = Math.pow(1 - flashProgress, 3.2) * flash.opacity
+      var flashHeight = 3.5 + 2.5 * smoothstep(0, 1, flashProgress)
       context.fillStyle = flash.color
       context.globalAlpha = flashFade
-      context.fillRect(Math.round(flash.x) - 1, Math.round(flash.y) - 1, 3, 3)
+      context.fillRect(Math.round(flash.x), Math.round(flash.y - flashHeight / 2), 1.5, flashHeight)
     }
 
     for (var particleIndex = 0; particleIndex < particles.length; particleIndex++) {
@@ -141,16 +131,16 @@ Canvas {
       var tailFade = 1 - smoothstep(0.68, 1, progress)
       var exponentialFade = Math.pow(0.965, particle.age / 16.667)
       var alpha = particle.opacity * exponentialFade * tailFade
-      var pop = progress < 0.08 ? 0.72 + 3.5 * progress : 1
-      var shrink = 1 - 0.42 * smoothstep(0.34, 1, progress)
+      var pop = progress < 0.07 ? 0.76 + 3.4 * progress : 1
+      var shrink = 1 - 0.48 * smoothstep(0.28, 1, progress)
       var size = Math.max(1, particle.size * pop * shrink)
       var px = Math.round(particle.x)
       var py = Math.round(particle.y)
 
       context.strokeStyle = particle.color
       if (particle.trail && progress < 0.76) {
-        var trailTime = 0.022 + 0.012 * (1 - progress)
-        context.globalAlpha = alpha * 0.34
+        var trailTime = 0.018 + 0.009 * (1 - progress)
+        context.globalAlpha = alpha * 0.24
         context.lineWidth = Math.max(1, size * 0.34)
         context.beginPath()
         context.moveTo(px, py)
@@ -162,17 +152,13 @@ Canvas {
       }
 
       context.fillStyle = particle.color
-      context.globalAlpha = alpha * 0.18
-      var halo = Math.max(3, Math.round(size + 2))
-      context.fillRect(px - halo / 2, py - halo / 2, halo, halo)
-
       context.globalAlpha = alpha
       context.fillRect(px - size / 2, py - size / 2, size, size)
 
-      if (progress < 0.16) {
+      if (progress < 0.11) {
         context.fillStyle = "#ffffff"
-        context.globalAlpha = alpha * (0.42 - progress * 2.2)
-        var hotCore = Math.max(1, size * 0.42)
+        context.globalAlpha = alpha * (0.38 - progress * 3.2)
+        var hotCore = Math.max(1, size * 0.38)
         context.fillRect(px - hotCore / 2, py - hotCore / 2, hotCore, hotCore)
       }
     }
