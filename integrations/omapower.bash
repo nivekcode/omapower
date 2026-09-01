@@ -3,13 +3,12 @@
 # typed characters never leave Bash.
 
 [[ $- == *i* ]] || return 0
-[[ ${OMAPOWER_BASH_INTEGRATION_LOADED:-0} == 2 ]] && return 0
-export OMAPOWER_BASH_INTEGRATION_LOADED=2
+[[ ${OMAPOWER_BASH_INTEGRATION_LOADED:-0} == 3 ]] && return 0
+export OMAPOWER_BASH_INTEGRATION_LOADED=3
 
 _OMAPOWER_SOCKET=${XDG_RUNTIME_DIR:-/run/user/$UID}/omapower.sock
 _OMAPOWER_ROWS=${LINES:-1}
 _OMAPOWER_COLUMNS=${COLUMNS:-1}
-_OMAPOWER_PROMPT_WIDTH=0
 _OMAPOWER_FD=
 
 exec {_OMAPOWER_TTY_FD}<>/dev/tty || return 0
@@ -31,7 +30,6 @@ _omapower_send() {
 }
 
 _omapower_report_caret() {
-  local rendered plain suffix
   IFS=' ' read -r _OMAPOWER_ROWS _OMAPOWER_COLUMNS < <(stty size < /dev/tty 2>/dev/null) || true
   [[ $_OMAPOWER_ROWS =~ ^[0-9]+$ && $_OMAPOWER_COLUMNS =~ ^[0-9]+$ ]] \
     && (( _OMAPOWER_ROWS > 0 && _OMAPOWER_COLUMNS > 0 )) || {
@@ -40,22 +38,14 @@ _omapower_report_caret() {
   }
   (( _OMAPOWER_ROWS > 0 )) || _OMAPOWER_ROWS=1
   (( _OMAPOWER_COLUMNS > 0 )) || _OMAPOWER_COLUMNS=1
-  rendered=${PS1@P}
-  plain=$(printf '%s' "$rendered" | sed -E $'s/\x1B\\][^\x07]*(\x07|\x1B\\\\)//g; s/\x1B\\[[0-9;?]*[ -\\/]*[@-~]//g; s/[\x01\x02]//g')
-  suffix=${plain##*$'\n'}
-  _OMAPOWER_PROMPT_WIDTH=${#suffix}
 }
 
 _omapower_after_insert() {
-  local row column linear point
+  local row column
   printf '\e[6n' >&"$_OMAPOWER_TTY_FD"
   IFS=';' read -r -s -d R -t 0.04 row column <&"$_OMAPOWER_TTY_FD" || return 0
   row=${row##*$'\e['}
   [[ $row =~ ^[0-9]+$ && $column =~ ^[0-9]+$ ]] || return 0
-  point=${READLINE_POINT:-1}
-  linear=$((column - 1 + _OMAPOWER_PROMPT_WIDTH + point - 1))
-  row=$((row + linear / _OMAPOWER_COLUMNS))
-  column=$((linear % _OMAPOWER_COLUMNS + 1))
   _omapower_send "type $row $column $_OMAPOWER_ROWS $_OMAPOWER_COLUMNS"
 }
 
@@ -71,7 +61,8 @@ _omapower_connect || true
 
 # A macro uses Readline's own quoted-insert, then runs our callback. This keeps
 # normal editing and undo behavior while giving the callback the physical cell
-# where Foot is about to draw the new character.
+# where Foot is about to draw the new character. The overlay advances one cell
+# from that physical position so the burst lands at the cursor after the letter.
 for ((_omapower_code = 32; _omapower_code <= 126; _omapower_code++)); do
   printf -v _omapower_binding '"\\x%02x":"\\C-v\\x%02x\\e[99~"' "$_omapower_code" "$_omapower_code"
   bind -m emacs-standard "$_omapower_binding"

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/omapower-logo-omarchy.png" alt="OmaPower" width="900">
+</p>
+
 # OmaPower
 
 OmaPower adds small Hyperpower-style particle bursts to terminal typing in the
@@ -123,7 +127,8 @@ cannot access Foot's caret. OmaPower's
 Bash integration wraps Readline's printable self-insert action. For each typed
 character, it asks Foot for its standard cursor-position report and sends only
 four numbers: cursor row, cursor column, terminal rows, and terminal columns.
-It combines that cell with the visible prompt width and Readline cursor index.
+The overlay advances one grid cell from that physical position, placing the
+burst at the cursor immediately after the newly typed character.
 It does not send the character or command line. The installer switches OmaPower
 to `socket` mode so fast typing cannot be merged by Wayland's idle monitor.
 

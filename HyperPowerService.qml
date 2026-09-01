@@ -178,9 +178,19 @@ Item {
       var gridHeight = Math.max(1, height - settings.terminalPaddingY * 2)
       var cellWidth = gridWidth / caret.columns
       var cellHeight = gridHeight / caret.rows
-      var columnOffset = caret.anchor === "character" ? 0.5 : 0
-      x = left + settings.terminalPaddingX + (caret.column - 1 + columnOffset) * cellWidth
-      y = topY + settings.terminalPaddingY + (caret.row - 0.5) * cellHeight
+      var gridColumn = caret.column - 1
+      var gridRow = caret.row
+      if (caret.anchor === "after-character") {
+        gridColumn += 1
+        if (gridColumn >= caret.columns) {
+          gridColumn = 0
+          gridRow = Math.min(caret.rows, gridRow + 1)
+        }
+      } else if (caret.anchor === "character") {
+        gridColumn += 0.5
+      }
+      x = left + settings.terminalPaddingX + gridColumn * cellWidth
+      y = topY + settings.terminalPaddingY + (gridRow - 0.5) * cellHeight
       positionMode = "terminal-grid"
     }
     var screen = screenForPoint(left + width / 2, topY + height / 2)
@@ -238,7 +248,7 @@ Item {
     }
     if (fields[0] === "type" && fields.length === 5) {
       if (settings.inputMode !== "socket" && settings.inputMode !== "both") return
-      if (setCaret(fields[1], fields[2], fields[3], fields[4], "character") === "ok")
+      if (setCaret(fields[1], fields[2], fields[3], fields[4], "after-character") === "ok")
         requestBurst("bash-readline", true, null)
       return
     }
