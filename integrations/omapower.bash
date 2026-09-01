@@ -9,6 +9,7 @@ export OMAPOWER_BASH_INTEGRATION_LOADED=2
 _OMAPOWER_SOCKET=${XDG_RUNTIME_DIR:-/run/user/$UID}/omapower.sock
 _OMAPOWER_ROWS=${LINES:-1}
 _OMAPOWER_COLUMNS=${COLUMNS:-1}
+_OMAPOWER_PROMPT_WIDTH=0
 _OMAPOWER_FD=
 
 exec {_OMAPOWER_TTY_FD}<>/dev/tty || return 0
@@ -30,19 +31,31 @@ _omapower_send() {
 }
 
 _omapower_report_caret() {
+  local rendered plain suffix
   IFS=' ' read -r _OMAPOWER_ROWS _OMAPOWER_COLUMNS < <(stty size < /dev/tty 2>/dev/null) || true
-  [[ $_OMAPOWER_ROWS =~ ^[0-9]+$ && $_OMAPOWER_COLUMNS =~ ^[0-9]+$ ]] || {
+  [[ $_OMAPOWER_ROWS =~ ^[0-9]+$ && $_OMAPOWER_COLUMNS =~ ^[0-9]+$ ]] \
+    && (( _OMAPOWER_ROWS > 0 && _OMAPOWER_COLUMNS > 0 )) || {
     _OMAPOWER_ROWS=${LINES:-1}
     _OMAPOWER_COLUMNS=${COLUMNS:-1}
   }
+  (( _OMAPOWER_ROWS > 0 )) || _OMAPOWER_ROWS=1
+  (( _OMAPOWER_COLUMNS > 0 )) || _OMAPOWER_COLUMNS=1
+  rendered=${PS1@P}
+  plain=$(printf '%s' "$rendered" | sed -E $'s/\x1B\\][^\x07]*(\x07|\x1B\\\\)//g; s/\x1B\\[[0-9;?]*[ -\\/]*[@-~]//g; s/[\x01\x02]//g')
+  suffix=${plain##*$'\n'}
+  _OMAPOWER_PROMPT_WIDTH=${#suffix}
 }
 
 _omapower_after_insert() {
-  local row column
+  local row column linear point
   printf '\e[6n' >&"$_OMAPOWER_TTY_FD"
   IFS=';' read -r -s -d R -t 0.04 row column <&"$_OMAPOWER_TTY_FD" || return 0
   row=${row##*$'\e['}
   [[ $row =~ ^[0-9]+$ && $column =~ ^[0-9]+$ ]] || return 0
+  point=${READLINE_POINT:-1}
+  linear=$((column - 1 + _OMAPOWER_PROMPT_WIDTH + point - 1))
+  row=$((row + linear / _OMAPOWER_COLUMNS))
+  column=$((linear % _OMAPOWER_COLUMNS + 1))
   _omapower_send "type $row $column $_OMAPOWER_ROWS $_OMAPOWER_COLUMNS"
 }
 

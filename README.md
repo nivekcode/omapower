@@ -5,7 +5,7 @@ Omarchy shell. It runs inside the existing `omarchy-shell` process and uses the
 active Omarchy accent color by default.
 
 The plugin targets Omarchy 4.0.1's schema version 1 plugin API. The current
-plugin release is 0.2.1.
+plugin release is 0.2.2.
 
 ## What works
 
@@ -123,9 +123,9 @@ cannot access Foot's caret. OmaPower's
 Bash integration wraps Readline's printable self-insert action. For each typed
 character, it asks Foot for its standard cursor-position report and sends only
 four numbers: cursor row, cursor column, terminal rows, and terminal columns.
-It does not send the character or command line. The installer switches
-OmaPower to `socket` mode so fast typing cannot be merged by Wayland's idle
-monitor.
+It combines that cell with the visible prompt width and Readline cursor index.
+It does not send the character or command line. The installer switches OmaPower
+to `socket` mode so fast typing cannot be merged by Wayland's idle monitor.
 
 Install it once, then open a new terminal:
 
