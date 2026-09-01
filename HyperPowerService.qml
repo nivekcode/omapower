@@ -22,6 +22,7 @@ Item {
   property bool effectEnabled: true
   property bool socketReady: false
   property int acceptedBursts: 0
+  property int settingsReloadAttempts: 0
   property var pendingBurst: null
   property var caretPositions: ({})
 
@@ -341,6 +342,17 @@ Item {
     }
   }
 
+  Timer {
+    id: settingsRetry
+    interval: 200
+    repeat: true
+    onTriggered: {
+      root.reloadSettings()
+      root.settingsReloadAttempts += 1
+      if (root.pluginEntry() || root.settingsReloadAttempts >= 10) stop()
+    }
+  }
+
   SocketServer {
     id: inputServer
     path: root.socketPath
@@ -396,5 +408,6 @@ Item {
     Hyprland.refreshMonitors()
     Hyprland.refreshToplevels()
     socketCleanup.running = true
+    settingsRetry.start()
   }
 }
