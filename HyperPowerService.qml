@@ -50,7 +50,8 @@ Item {
     var values = [
       ipc && ipc.class,
       ipc && ipc.initialClass,
-      toplevel && toplevel.appId
+      toplevel && toplevel.appId,
+      toplevel && toplevel.wayland && toplevel.wayland.appId
     ]
     return values.map(function(value) { return String(value || "").toLowerCase() }).join("\n")
   }
@@ -64,6 +65,25 @@ Item {
     return false
   }
 
+  function activeToplevel() {
+    if (Hyprland.activeToplevel) return Hyprland.activeToplevel
+    var values = Hyprland.toplevels && Hyprland.toplevels.values ? Hyprland.toplevels.values : []
+    var best = null
+    var bestHistory = 2147483647
+    for (var i = 0; i < values.length; i++) {
+      var candidate = values[i]
+      var ipc = candidate && candidate.lastIpcObject ? candidate.lastIpcObject : null
+      if (!ipc) continue
+      if (ipc.acceptsInput === true) return candidate
+      var history = Number(ipc.focusHistoryID)
+      if (isFinite(history) && history >= 0 && history < bestHistory) {
+        best = candidate
+        bestHistory = history
+      }
+    }
+    return best
+  }
+
   function screenForPoint(x, y) {
     var screens = Quickshell.screens
     for (var i = 0; i < screens.length; i++) {
@@ -75,7 +95,7 @@ Item {
   }
 
   function focusedTarget(requireTerminal) {
-    var top = Hyprland.activeToplevel
+    var top = activeToplevel()
     var ipc = top && top.lastIpcObject ? top.lastIpcObject : null
     if (!top || !ipc) return null
     if (requireTerminal && !isSupportedTerminal(top, ipc)) return null
@@ -107,7 +127,7 @@ Item {
     if (!effectEnabled || !settings.particlesEnabled) return "disabled"
     var target = focusedTarget(requireTerminal)
     if (!target) {
-      var top = Hyprland.activeToplevel
+      var top = activeToplevel()
       var attempts = Number(retryCount || 0)
       if (top && !top.lastIpcObject && attempts < 2) {
         pendingBurst = {
@@ -193,7 +213,7 @@ Item {
   }
 
   function diagnostics() {
-    var top = Hyprland.activeToplevel
+    var top = activeToplevel()
     var ipc = top && top.lastIpcObject ? top.lastIpcObject : null
     var screens = []
     for (var i = 0; i < Quickshell.screens.length; i++) {
