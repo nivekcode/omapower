@@ -5,7 +5,7 @@ Omarchy shell. It runs inside the existing `omarchy-shell` process and uses the
 active Omarchy accent color by default.
 
 The plugin targets Omarchy 4.0.1's schema version 1 plugin API. The current
-plugin release is 0.1.5.
+plugin release is 0.2.0.
 
 ## What works
 
@@ -13,6 +13,8 @@ plugin release is 0.1.5.
   speed, lifetime, gravity, fade, and color
 - Automatic Bash-compatible input activity through Wayland's idle-notify
   protocol
+- Foot cursor-grid positioning through an optional content-blind Bash prompt
+  hook
 - Foot, Ghostty, Kitty, and Alacritty focus filtering through Quickshell's
   native Hyprland integration
 - One click-through overlay per monitor, using Wayland logical coordinates
@@ -113,6 +115,27 @@ cursor movement, deletion, completion, or bracketed paste. Bash and Fish do not
 have an equally small, content-blind hook, so this release leaves their
 automatic integration disabled. Manual bursts still work.
 
+### Bash and Foot cursor integration
+
+[Hyperpower](https://github.com/vercel/hyperpower) runs inside Hyper and receives
+the terminal component's `cursorFrame.x/y` directly. An external Wayland overlay
+cannot access Foot's caret. OmaPower's
+Bash integration asks Foot for its standard cursor-position report at each
+prompt and sends only four numbers: cursor row, cursor column, terminal rows,
+and terminal columns.
+
+Install it once, then open a new terminal:
+
+```bash
+~/.config/omarchy/plugins/io.github.nivekcode.omapower/scripts/install-bash-integration
+```
+
+Between prompts, the Wayland activity signal advances the recorded grid column
+for each burst. Ordinary left-to-right typing now follows the terminal caret.
+Backspace, cursor movement, wide Unicode glyphs, and mouse-triggered activity
+cannot be identified by Wayland, so those cases remain approximate until the
+next prompt report. The hook never sends the command line or typed character.
+
 ## Caret position
 
 OmaPower does not know the real terminal caret coordinates. Neither generic
@@ -156,6 +179,9 @@ Settings persist in the plugin's entry in `~/.config/omarchy/shell.json`. The
 | `customParticleColor` | `#ffffff` | six or eight digit hex color |
 | `inputMode` | `activity` | `activity`, `socket`, `both` |
 | `activityResetDelay` | `30` | 10 to 250 ms |
+| `caretTrackingEnabled` | `true` | boolean |
+| `terminalPaddingX` | `14` | 0 to 100 logical px |
+| `terminalPaddingY` | `14` | 0 to 100 logical px |
 | `terminalIdentifiers` | common terminals | JSON array or comma-separated list |
 | `originXRatio` | `0.18` | 0 to 1 |
 | `originBottomOffset` | `52` | 0 to 400 logical px |

@@ -18,6 +18,9 @@ QtObject {
     customParticleColor: "#ffffff",
     inputMode: "activity",
     activityResetDelay: 30,
+    caretTrackingEnabled: true,
+    terminalPaddingX: 14,
+    terminalPaddingY: 14,
     terminalIdentifiers: ["foot", "footclient", "com.mitchellh.ghostty", "ghostty", "kitty", "alacritty"],
     originXRatio: 0.18,
     originBottomOffset: 52
@@ -64,6 +67,9 @@ QtObject {
       inputMode: ["activity", "socket", "both"].indexOf(String(raw.inputMode || "")) >= 0
         ? String(raw.inputMode) : d.inputMode,
       activityResetDelay: Math.round(number(raw.activityResetDelay, d.activityResetDelay, 10, 250)),
+      caretTrackingEnabled: boolean(raw.caretTrackingEnabled, d.caretTrackingEnabled),
+      terminalPaddingX: number(raw.terminalPaddingX, d.terminalPaddingX, 0, 100),
+      terminalPaddingY: number(raw.terminalPaddingY, d.terminalPaddingY, 0, 100),
       terminalIdentifiers: ids.map(function(value) { return String(value).toLowerCase() }).filter(function(value) { return value.length > 0 }),
       originXRatio: number(raw.originXRatio, d.originXRatio, 0, 1),
       originBottomOffset: number(raw.originBottomOffset, d.originBottomOffset, 0, 400)

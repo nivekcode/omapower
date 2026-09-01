@@ -2,4 +2,5 @@
 *.jsc
 .qmlls.ini
 .DS_Store
+nvim.log
 result/

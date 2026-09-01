@@ -23,6 +23,7 @@ Item {
   property bool socketReady: false
   property int acceptedBursts: 0
   property var pendingBurst: null
+  property var caretPositions: ({})
 
   signal burstRequested(var event)
   signal settingsReloaded()
@@ -94,6 +95,65 @@ Item {
     return screens.length > 0 ? screens[0] : null
   }
 
+  function windowKey(toplevel, ipc) {
+    return String((toplevel && toplevel.address) || (ipc && ipc.address) || "").toLowerCase()
+  }
+
+  function caretFor(toplevel, ipc) {
+    if (!settings.caretTrackingEnabled) return null
+    var key = windowKey(toplevel, ipc)
+    return key ? caretPositions[key] || null : null
+  }
+
+  function setCaret(rowValue, columnValue, rowsValue, columnsValue) {
+    var top = activeToplevel()
+    var ipc = top && top.lastIpcObject ? top.lastIpcObject : null
+    if (!top || !ipc || !isSupportedTerminal(top, ipc)) return "not-terminal"
+    var row = Math.max(1, Math.round(Number(rowValue)))
+    var column = Math.max(1, Math.round(Number(columnValue)))
+    var rows = Math.max(1, Math.round(Number(rowsValue)))
+    var columns = Math.max(1, Math.round(Number(columnsValue)))
+    if (!isFinite(row) || !isFinite(column) || !isFinite(rows) || !isFinite(columns)) return "invalid"
+    var key = windowKey(top, ipc)
+    if (!key) return "no-window"
+    var next = ({})
+    for (var existing in caretPositions) next[existing] = caretPositions[existing]
+    next[key] = {
+      row: Math.min(row, rows),
+      column: Math.min(column, columns),
+      rows: rows,
+      columns: columns,
+      updatedAt: Date.now()
+    }
+    caretPositions = next
+    return "ok"
+  }
+
+  function advanceFocusedCaret() {
+    if (!settings.caretTrackingEnabled) return
+    var top = activeToplevel()
+    var ipc = top && top.lastIpcObject ? top.lastIpcObject : null
+    var key = windowKey(top, ipc)
+    var current = key ? caretPositions[key] : null
+    if (!current) return
+    var nextColumn = current.column + 1
+    var nextRow = current.row
+    if (nextColumn > current.columns) {
+      nextColumn = 1
+      nextRow = Math.min(current.rows, nextRow + 1)
+    }
+    var next = ({})
+    for (var existing in caretPositions) next[existing] = caretPositions[existing]
+    next[key] = {
+      row: nextRow,
+      column: nextColumn,
+      rows: current.rows,
+      columns: current.columns,
+      updatedAt: Date.now()
+    }
+    caretPositions = next
+  }
+
   function focusedTarget(requireTerminal) {
     var top = activeToplevel()
     var ipc = top && top.lastIpcObject ? top.lastIpcObject : null
@@ -107,8 +167,19 @@ Item {
     var topY = Number(at[1])
     var width = Number(size[0])
     var height = Number(size[1])
+    var caret = caretFor(top, ipc)
     var x = left + width * settings.originXRatio
     var y = topY + height - settings.originBottomOffset
+    var positionMode = "window-approximation"
+    if (caret) {
+      var gridWidth = Math.max(1, width - settings.terminalPaddingX * 2)
+      var gridHeight = Math.max(1, height - settings.terminalPaddingY * 2)
+      var cellWidth = gridWidth / caret.columns
+      var cellHeight = gridHeight / caret.rows
+      x = left + settings.terminalPaddingX + (caret.column - 1) * cellWidth
+      y = topY + settings.terminalPaddingY + (caret.row - 0.5) * cellHeight
+      positionMode = "terminal-grid"
+    }
     var screen = screenForPoint(left + width / 2, topY + height / 2)
     if (!screen) return null
     return {
@@ -119,7 +190,8 @@ Item {
       windowY: topY,
       windowWidth: width,
       windowHeight: height,
-      approximate: true
+      approximate: true,
+      positionMode: positionMode
     }
   }
 
@@ -157,13 +229,16 @@ Item {
   function handleSocketLine(line) {
     var token = String(line || "").trim()
     if (token !== "burst") return
-    if (settings.inputMode === "socket" || settings.inputMode === "both")
+    if (settings.inputMode === "socket" || settings.inputMode === "both") {
+      advanceFocusedCaret()
       requestBurst("shell-integration", true, null)
+    }
   }
 
   function handleActivityChanged() {
     if (activityMonitor.isIdle) return
     if (settings.inputMode !== "activity" && settings.inputMode !== "both") return
+    advanceFocusedCaret()
     requestBurst("wayland-activity", true, null)
   }
 
@@ -226,7 +301,8 @@ Item {
       hasIpcGeometry: ipc !== null && ipc.at !== undefined && ipc.size !== undefined,
       at: ipc && ipc.at ? [Number(ipc.at[0]), Number(ipc.at[1])] : [],
       size: ipc && ipc.size ? [Number(ipc.size[0]), Number(ipc.size[1])] : [],
-      screens: screens
+      screens: screens,
+      caret: caretFor(top, ipc)
     }
   }
 
@@ -288,6 +364,9 @@ Item {
     function toggle(): string { return root.setEnabled(!root.effectEnabled) }
     function reloadSettings(): string { return root.reloadSettings() }
     function set(key: string, value: string): string { return root.setSetting(key, value) }
+    function caret(row: string, column: string, rows: string, columns: string): string {
+      return root.setCaret(row, column, rows, columns)
+    }
     function status(): string {
       return JSON.stringify({
         enabled: root.effectEnabled,
