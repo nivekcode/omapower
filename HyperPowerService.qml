@@ -105,7 +105,7 @@ Item {
     return key ? caretPositions[key] || null : null
   }
 
-  function setCaret(rowValue, columnValue, rowsValue, columnsValue) {
+  function setCaret(rowValue, columnValue, rowsValue, columnsValue, anchorValue) {
     var top = activeToplevel()
     var ipc = top && top.lastIpcObject ? top.lastIpcObject : null
     if (!top || !ipc || !isSupportedTerminal(top, ipc)) return "not-terminal"
@@ -123,6 +123,7 @@ Item {
       column: Math.min(column, columns),
       rows: rows,
       columns: columns,
+      anchor: String(anchorValue || "cursor"),
       updatedAt: Date.now()
     }
     caretPositions = next
@@ -176,7 +177,8 @@ Item {
       var gridHeight = Math.max(1, height - settings.terminalPaddingY * 2)
       var cellWidth = gridWidth / caret.columns
       var cellHeight = gridHeight / caret.rows
-      x = left + settings.terminalPaddingX + (caret.column - 1) * cellWidth
+      var columnOffset = caret.anchor === "character" ? 0.5 : 0
+      x = left + settings.terminalPaddingX + (caret.column - 1 + columnOffset) * cellWidth
       y = topY + settings.terminalPaddingY + (caret.row - 0.5) * cellHeight
       positionMode = "terminal-grid"
     }
@@ -228,8 +230,18 @@ Item {
 
   function handleSocketLine(line) {
     var token = String(line || "").trim()
-    if (token !== "burst") return
-    if (settings.inputMode === "socket" || settings.inputMode === "both") {
+    var fields = token.split(/\s+/)
+    if (fields[0] === "caret" && fields.length === 5) {
+      setCaret(fields[1], fields[2], fields[3], fields[4], "cursor")
+      return
+    }
+    if (fields[0] === "type" && fields.length === 5) {
+      if (settings.inputMode !== "socket" && settings.inputMode !== "both") return
+      if (setCaret(fields[1], fields[2], fields[3], fields[4], "character") === "ok")
+        requestBurst("bash-readline", true, null)
+      return
+    }
+    if (token === "burst" && (settings.inputMode === "socket" || settings.inputMode === "both")) {
       advanceFocusedCaret()
       requestBurst("shell-integration", true, null)
     }

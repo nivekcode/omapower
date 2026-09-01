@@ -10,10 +10,12 @@ source_line="source \"$integration\""
 touch "$bashrc"
 if grep -Fqx "$source_line" "$bashrc"; then
   printf 'OmaPower Bash integration is already installed.\n'
-  exit 0
+else
+  backup="${bashrc}.omapower-backup.$(date +%Y%m%d%H%M%S)"
+  cp -p "$bashrc" "$backup"
+  printf '\n# OmaPower terminal caret integration\n%s\n' "$source_line" >> "$bashrc"
+  printf 'Installed OmaPower Bash integration. Backup: %s\n' "$backup"
 fi
 
-backup="${bashrc}.omapower-backup.$(date +%Y%m%d%H%M%S)"
-cp -p "$bashrc" "$backup"
-printf '\n# OmaPower terminal caret integration\n%s\n' "$source_line" >> "$bashrc"
-printf 'Installed OmaPower Bash integration. Backup: %s\n' "$backup"
+omarchy-shell -q omapower set inputMode socket
+printf 'OmaPower input mode set to socket for exact Bash tracking.\n'

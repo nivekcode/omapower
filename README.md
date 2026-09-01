@@ -5,7 +5,7 @@ Omarchy shell. It runs inside the existing `omarchy-shell` process and uses the
 active Omarchy accent color by default.
 
 The plugin targets Omarchy 4.0.1's schema version 1 plugin API. The current
-plugin release is 0.2.0.
+plugin release is 0.2.1.
 
 ## What works
 
@@ -110,19 +110,22 @@ second burst for the same key:
 ./scripts/omapowerctl set inputMode socket
 ```
 
-The hook covers printable self-insert events. It does not add particles for
-cursor movement, deletion, completion, or bracketed paste. Bash and Fish do not
-have an equally small, content-blind hook, so this release leaves their
-automatic integration disabled. Manual bursts still work.
+The Zsh hook covers printable self-insert events. It does not add particles for
+cursor movement, deletion, completion, or bracketed paste. Fish does not have
+an equally small, content-blind hook, so its automatic integration remains
+disabled. Manual bursts still work.
 
-### Bash and Foot cursor integration
+### Exact Bash and Foot cursor integration
 
 [Hyperpower](https://github.com/vercel/hyperpower) runs inside Hyper and receives
 the terminal component's `cursorFrame.x/y` directly. An external Wayland overlay
 cannot access Foot's caret. OmaPower's
-Bash integration asks Foot for its standard cursor-position report at each
-prompt and sends only four numbers: cursor row, cursor column, terminal rows,
-and terminal columns.
+Bash integration wraps Readline's printable self-insert action. For each typed
+character, it asks Foot for its standard cursor-position report and sends only
+four numbers: cursor row, cursor column, terminal rows, and terminal columns.
+It does not send the character or command line. The installer switches
+OmaPower to `socket` mode so fast typing cannot be merged by Wayland's idle
+monitor.
 
 Install it once, then open a new terminal:
 
@@ -130,22 +133,23 @@ Install it once, then open a new terminal:
 ~/.config/omarchy/plugins/io.github.nivekcode.omapower/scripts/install-bash-integration
 ```
 
-Between prompts, the Wayland activity signal advances the recorded grid column
-for each burst. Ordinary left-to-right typing now follows the terminal caret.
-Backspace, cursor movement, wide Unicode glyphs, and mouse-triggered activity
-cannot be identified by Wayland, so those cases remain approximate until the
-next prompt report. The hook never sends the command line or typed character.
+Readline invokes the hook after inserting a printable character. Foot reports
+the physical grid cell where that character is being drawn, so backspacing or
+moving the cursor before typing does not accumulate positioning error. The hook
+does not emit particles for deletion, completion, bracketed paste, or non-ASCII
+input. It never sends the command line or typed character.
 
 ## Caret position
 
-OmaPower does not know the real terminal caret coordinates. Neither generic
-Wayland nor Hyprland exposes them, and Quickshell's toplevel API provides window
-geometry rather than terminal grid state. Reading terminal screen contents to
-find the caret would expose command text, so OmaPower refuses to do it.
+Generic Wayland and Hyprland do not expose terminal caret coordinates.
+Quickshell's toplevel API provides window geometry rather than terminal grid
+state. The optional Bash integration closes that gap for Foot by requesting
+the terminal's standard numeric cursor-position report for each printable
+Readline insertion.
 
-The origin is an approximation inside the active terminal window. By default it
-is 18 percent across the window and 52 logical pixels above the bottom edge.
-Tune these for your prompt and terminal padding:
+Without the Bash integration, the origin is an approximation inside the active
+terminal window. By default it is 18 percent across the window and 52 logical
+pixels above the bottom edge. Tune these for your prompt and terminal padding:
 
 ```bash
 ./scripts/omapowerctl set originXRatio 0.12
