@@ -79,9 +79,10 @@ Item {
     var ipc = top && top.lastIpcObject ? top.lastIpcObject : null
     if (!top || !ipc) return null
     if (requireTerminal && !isSupportedTerminal(top, ipc)) return null
-    var at = Array.isArray(ipc.at) ? ipc.at : [0, 0]
-    var size = Array.isArray(ipc.size) ? ipc.size : [0, 0]
-    if (size.length < 2 || Number(size[0]) <= 0 || Number(size[1]) <= 0) return null
+    var at = ipc.at
+    var size = ipc.size
+    if (!at || at.length < 2 || !size || size.length < 2
+        || Number(size[0]) <= 0 || Number(size[1]) <= 0) return null
     var left = Number(at[0])
     var topY = Number(at[1])
     var width = Number(size[0])
