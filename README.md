@@ -5,7 +5,7 @@ Omarchy shell. It runs inside the existing `omarchy-shell` process and uses the
 active Omarchy accent color by default.
 
 The plugin targets Omarchy 4.0.1's schema version 1 plugin API. The current
-plugin release is 0.2.2.
+plugin release is 0.3.0.
 
 ## What works
 
@@ -168,14 +168,16 @@ Settings persist in the plugin's entry in `~/.config/omarchy/shell.json`. The
 | Setting | Default | Range or values |
 | --- | ---: | --- |
 | `particlesEnabled` | `true` | boolean |
-| `particleCount` | `5` | 1 to 24 |
-| `particleLifetime` | `480` | 120 to 2000 ms |
-| `particleSize` | `4` | 1 to 18 logical px |
-| `particleSpread` | `130` | 15 to 500 logical px |
-| `initialVelocity` | `170` | 20 to 800 |
-| `gravity` | `250` | -500 to 1400 |
-| `opacity` | `0.92` | 0.05 to 1 |
-| `maximumActiveParticles` | `120` | 8 to 500 |
+| `particleCount` | `7` | 1 to 24 |
+| `particleLifetime` | `720` | 120 to 2000 ms |
+| `particleSize` | `3` | 1 to 18 logical px |
+| `particleSpread` | `105` | 15 to 500 logical px |
+| `initialVelocity` | `210` | 20 to 800 |
+| `gravity` | `340` | -500 to 1400 |
+| `opacity` | `1` | 0.05 to 1 |
+| `maximumActiveParticles` | `220` | 8 to 500 |
+| `particleTrail` | `true` | boolean |
+| `cursorFlash` | `true` | boolean |
 | `shakeEnabled` | `false` | boolean |
 | `shakeStrength` | `2` | 0 to 12 logical px |
 | `shakeDuration` | `90` | 20 to 400 ms |
@@ -208,10 +210,10 @@ are used immediately and are not written to disk, logged, transmitted, or kept
 as a history. The service stores only a lifetime burst counter for its status
 output. Disable and re-enable the plugin to reset it.
 
-Each particle is a short-lived QML object driven by Qt animations. The overlay
-has no frame timer, removes expired objects, and refuses bursts beyond
-`maximumActiveParticles`. The layer surface has an empty input region and never
-requests keyboard focus.
+Each monitor uses one canvas driven by Qt's vsync-aligned `FrameAnimation`.
+Particles share that clock, expired particles are removed in batches, and new
+bursts stop at `maximumActiveParticles`. The layer surface has an empty input
+region and never requests keyboard focus.
 
 ## Development checks
 

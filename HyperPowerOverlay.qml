@@ -35,44 +35,14 @@ Item {
     if (!opened || !event || !event.settings || String(layer.screen.name) !== String(event.screenName)) return
     var settings = event.settings
     var available = Math.max(0, settings.maximumActiveParticles - activeParticles)
-    var count = Math.min(settings.particleCount, available)
-    if (count <= 0) return
     var localX = event.x - layer.screen.x
     var localY = event.y - layer.screen.y
-    var lifetimeSeconds = settings.particleLifetime / 1000
-    for (var i = 0; i < count; i++) {
-      var angle = Math.random() * Math.PI * 2
-      var speed = settings.initialVelocity * (0.65 + Math.random() * 0.7)
-      var spread = settings.particleSpread * (0.55 + Math.random() * 0.65)
-      var vx = Math.cos(angle) * speed
-      var vy = Math.sin(angle) * speed
-      var endX = localX + Math.cos(angle) * spread
-      var endY = localY + Math.sin(angle) * spread + 0.5 * settings.gravity * lifetimeSeconds * lifetimeSeconds
-      var controlX = localX + vx * lifetimeSeconds * 0.48
-      var controlY = localY + vy * lifetimeSeconds * 0.48
-      var size = settings.particleSize * (0.65 + Math.random() * 0.75)
-      var life = Math.round(settings.particleLifetime * (0.72 + Math.random() * 0.55))
-      var item = particleComponent.createObject(layer.particleField, {
-        startX: localX,
-        startY: localY,
-        endX: endX,
-        endY: endY,
-        controlX: controlX,
-        controlY: controlY,
-        life: life,
-        width: size,
-        height: size,
-        opacity: settings.opacity,
-        color: colorFor(settings.particleColorMode, settings.customParticleColor),
-        release: function() { root.activeParticles = Math.max(0, root.activeParticles - 1) }
-      })
-      if (item) activeParticles += 1
-    }
+    var count = layer.particleField.addBurst(localX, localY, settings, available, Color.accent)
+    if (count <= 0) return
+    activeParticles += count
     if (settings.shakeEnabled && settings.shakeStrength > 0) layer.shake(settings)
     burstSerial += 1
   }
-
-  Component { id: particleComponent; HyperPowerParticle {} }
 
   Variants {
     id: surfaceRepeater
@@ -113,9 +83,12 @@ Item {
         shakeY.start()
       }
 
-      Item {
+      HyperPowerCanvas {
         id: field
         anchors.fill: parent
+        onParticlesReleased: function(count) {
+          root.activeParticles = Math.max(0, root.activeParticles - count)
+        }
       }
 
       SequentialAnimation {
