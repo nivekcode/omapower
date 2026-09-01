@@ -5,7 +5,7 @@ Omarchy shell. It runs inside the existing `omarchy-shell` process and uses the
 active Omarchy accent color by default.
 
 The plugin targets Omarchy 4.0.1's schema version 1 plugin API. The current
-plugin release is 0.1.3.
+plugin release is 0.1.4.
 
 ## What works
 

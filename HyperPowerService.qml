@@ -192,6 +192,24 @@ Item {
     return JSON.stringify(settings[key])
   }
 
+  function diagnostics() {
+    var top = Hyprland.activeToplevel
+    var ipc = top && top.lastIpcObject ? top.lastIpcObject : null
+    var screens = []
+    for (var i = 0; i < Quickshell.screens.length; i++) {
+      var screen = Quickshell.screens[i]
+      screens.push({ name: String(screen.name), x: screen.x, y: screen.y, width: screen.width, height: screen.height })
+    }
+    return {
+      hasActiveToplevel: top !== null,
+      appId: String((ipc && (ipc.class || ipc.initialClass)) || (top && top.appId) || ""),
+      hasIpcGeometry: ipc !== null && ipc.at !== undefined && ipc.size !== undefined,
+      at: ipc && ipc.at ? [Number(ipc.at[0]), Number(ipc.at[1])] : [],
+      size: ipc && ipc.size ? [Number(ipc.size[0]), Number(ipc.size[1])] : [],
+      screens: screens
+    }
+  }
+
   Connections {
     target: root.shell
     ignoreUnknownSignals: true
@@ -258,6 +276,7 @@ Item {
         settings: root.settings
       })
     }
+    function diagnostics(): string { return JSON.stringify(root.diagnostics()) }
     function ping(): string { return "ok" }
   }
 
