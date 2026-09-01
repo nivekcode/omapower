@@ -16,6 +16,8 @@ QtObject {
     shakeDuration: 90,
     particleColorMode: "accent",
     customParticleColor: "#ffffff",
+    inputMode: "activity",
+    activityResetDelay: 30,
     terminalIdentifiers: ["foot", "footclient", "com.mitchellh.ghostty", "ghostty", "kitty", "alacritty"],
     originXRatio: 0.18,
     originBottomOffset: 52
@@ -59,6 +61,9 @@ QtObject {
         ? String(raw.particleColorMode) : d.particleColorMode,
       customParticleColor: /^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/.test(String(raw.customParticleColor || ""))
         ? String(raw.customParticleColor) : d.customParticleColor,
+      inputMode: ["activity", "socket", "both"].indexOf(String(raw.inputMode || "")) >= 0
+        ? String(raw.inputMode) : d.inputMode,
+      activityResetDelay: Math.round(number(raw.activityResetDelay, d.activityResetDelay, 10, 250)),
       terminalIdentifiers: ids.map(function(value) { return String(value).toLowerCase() }).filter(function(value) { return value.length > 0 }),
       originXRatio: number(raw.originXRatio, d.originXRatio, 0, 1),
       originBottomOffset: number(raw.originBottomOffset, d.originBottomOffset, 0, 400)

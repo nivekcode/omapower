@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
+import Quickshell.Wayland
 
 Item {
   id: root
@@ -19,6 +20,7 @@ Item {
   readonly property string socketPath: runtimeDir + "/omapower.sock"
   property var settings: model.sanitized({})
   property bool effectEnabled: true
+  property bool socketReady: false
   property int acceptedBursts: 0
 
   signal burstRequested(var event)
@@ -117,7 +119,15 @@ Item {
 
   function handleSocketLine(line) {
     var token = String(line || "").trim()
-    if (token === "burst") requestBurst("shell-integration", true, null)
+    if (token !== "burst") return
+    if (settings.inputMode === "socket" || settings.inputMode === "both")
+      requestBurst("shell-integration", true, null)
+  }
+
+  function handleActivityChanged() {
+    if (activityMonitor.isIdle) return
+    if (settings.inputMode !== "activity" && settings.inputMode !== "both") return
+    requestBurst("wayland-activity", true, null)
   }
 
   function setEnabled(enabled) {
@@ -165,13 +175,27 @@ Item {
   SocketServer {
     id: inputServer
     path: root.socketPath
-    active: true
+    active: root.socketReady
     handler: Socket {
       parser: SplitParser {
         splitMarker: "\n"
         onRead: function(line) { root.handleSocketLine(line) }
       }
     }
+  }
+
+  IdleMonitor {
+    id: activityMonitor
+    enabled: root.effectEnabled && (root.settings.inputMode === "activity" || root.settings.inputMode === "both")
+    timeout: root.settings.activityResetDelay / 1000
+    respectInhibitors: false
+    onIsIdleChanged: root.handleActivityChanged()
+  }
+
+  Process {
+    id: socketCleanup
+    command: ["rm", "-f", root.socketPath]
+    onExited: root.socketReady = true
   }
 
   IpcHandler {
@@ -194,5 +218,8 @@ Item {
     function ping(): string { return "ok" }
   }
 
-  Component.onCompleted: reloadSettings()
+  Component.onCompleted: {
+    reloadSettings()
+    socketCleanup.running = true
+  }
 }

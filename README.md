@@ -10,6 +10,8 @@ The plugin targets Omarchy 4.0.1's schema version 1 plugin API.
 
 - Three to eight animated particles per burst, with randomized size, direction,
   speed, lifetime, gravity, fade, and color
+- Automatic Bash-compatible input activity through Wayland's idle-notify
+  protocol
 - Foot, Ghostty, Kitty, and Alacritty focus filtering through Quickshell's
   native Hyprland integration
 - One click-through overlay per monitor, using Wayland logical coordinates
@@ -64,12 +66,27 @@ omarchy-shell omapower set particleSize 5
 Automatic shell-integration events are rejected unless a supported terminal is
 focused.
 
-## Optional typing integration
+## Typing detection
 
 Wayland does not let an ordinary shell plugin observe another application's
 keypresses or caret. That separation is a security feature. OmaPower does not
 use `/dev/input`, a global shortcut for every key, accessibility scraping, or
 terminal screen capture.
+
+The default `activity` input mode uses Wayland's idle-notify protocol with a
+30 ms reset delay. It sees only that user activity resumed, then checks whether
+a supported terminal is focused. It does not receive a key code, character, or
+device type. This works with Bash and other shells, but it can also create one
+burst when mouse activity resumes while a terminal is focused. Continuous
+pointer movement does not produce a stream of bursts because the monitor must
+be idle for 30 ms before it can resume again.
+
+```bash
+./scripts/omapowerctl set inputMode activity
+./scripts/omapowerctl set activityResetDelay 30
+```
+
+### Optional exact Zsh integration
 
 For Zsh, source the included integration after your line editor configuration:
 
@@ -82,6 +99,13 @@ token `burst` after ZLE's built-in `self-insert` widget runs. It never sends the
 buffer, command, cursor index, or environment. The plugin checks the focused
 window again before rendering. It uses Zsh's bundled `zsh/net/socket` module,
 so it does not start a helper process or add a dependency.
+
+Switch to socket-only mode to prevent the Wayland fallback from creating a
+second burst for the same key:
+
+```bash
+./scripts/omapowerctl set inputMode socket
+```
 
 The hook covers printable self-insert events. It does not add particles for
 cursor movement, deletion, completion, or bracketed paste. Bash and Fish do not
@@ -129,6 +153,8 @@ Settings persist in the plugin's entry in `~/.config/omarchy/shell.json`. The
 | `shakeDuration` | `90` | 20 to 400 ms |
 | `particleColorMode` | `accent` | `accent`, `rainbow`, `fixed` |
 | `customParticleColor` | `#ffffff` | six or eight digit hex color |
+| `inputMode` | `activity` | `activity`, `socket`, `both` |
+| `activityResetDelay` | `30` | 10 to 250 ms |
 | `terminalIdentifiers` | common terminals | JSON array or comma-separated list |
 | `originXRatio` | `0.18` | 0 to 1 |
 | `originBottomOffset` | `52` | 0 to 400 logical px |
@@ -145,7 +171,8 @@ an interrupted animation, so OmaPower does not do that.
 
 ## Privacy and performance
 
-The socket accepts one event word and ignores everything except `burst`. Events
+The Wayland activity monitor exposes no key or pointer data. The socket accepts
+one event word and ignores everything except `burst`. Events
 are used immediately and are not written to disk, logged, transmitted, or kept
 as a history. The service stores only a lifetime burst counter for its status
 output. Disable and re-enable the plugin to reset it.
