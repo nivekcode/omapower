@@ -61,8 +61,7 @@ _omapower_connect || true
 
 # A macro uses Readline's own quoted-insert, then runs our callback. This keeps
 # normal editing and undo behavior while giving the callback the physical cell
-# where Foot is about to draw the new character. The overlay advances one cell
-# from that physical position so the burst lands at the cursor after the letter.
+# where Foot leaves the cursor after drawing the new character.
 for ((_omapower_code = 32; _omapower_code <= 126; _omapower_code++)); do
   printf -v _omapower_binding '"\\x%02x":"\\C-v\\x%02x\\e[99~"' "$_omapower_code" "$_omapower_code"
   bind -m emacs-standard "$_omapower_binding"
