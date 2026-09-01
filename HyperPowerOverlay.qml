@@ -1,0 +1,138 @@
+pragma ComponentBehavior: Bound
+
+import QtQuick
+import Quickshell
+import Quickshell.Wayland
+import qs.Commons
+
+Item {
+  id: root
+
+  property var service: null
+  property bool opened: true
+  property int activeParticles: 0
+  property int burstSerial: 0
+
+  function open(payloadJson) {
+    opened = true
+    if (service) service.requestBurst("summon", false, null)
+  }
+
+  function close() { opened = false }
+  function burst() { return service ? service.requestBurst("overlay", false, null) : "no-service" }
+  function enable() { opened = true; return service ? service.setEnabled(true) : "no-service" }
+  function disable() { return service ? service.setEnabled(false) : "no-service" }
+  function toggle() { return service ? service.setEnabled(!service.effectEnabled) : "no-service" }
+  function reloadSettings() { return service ? service.reloadSettings() : "no-service" }
+
+  function colorFor(mode, customColor) {
+    if (mode === "rainbow") return Qt.hsla(Math.random(), 0.82, 0.64, 1)
+    if (mode === "fixed") return customColor
+    return Color.accent
+  }
+
+  function emitBurst(layer, event) {
+    if (!opened || !event || !event.settings || String(layer.screen.name) !== String(event.screenName)) return
+    var settings = event.settings
+    var available = Math.max(0, settings.maximumActiveParticles - activeParticles)
+    var count = Math.min(settings.particleCount, available)
+    if (count <= 0) return
+    var localX = event.x - layer.screen.x
+    var localY = event.y - layer.screen.y
+    var lifetimeSeconds = settings.particleLifetime / 1000
+    for (var i = 0; i < count; i++) {
+      var angle = Math.random() * Math.PI * 2
+      var speed = settings.initialVelocity * (0.65 + Math.random() * 0.7)
+      var spread = settings.particleSpread * (0.55 + Math.random() * 0.65)
+      var vx = Math.cos(angle) * speed
+      var vy = Math.sin(angle) * speed
+      var endX = localX + Math.cos(angle) * spread
+      var endY = localY + Math.sin(angle) * spread + 0.5 * settings.gravity * lifetimeSeconds * lifetimeSeconds
+      var controlX = localX + vx * lifetimeSeconds * 0.48
+      var controlY = localY + vy * lifetimeSeconds * 0.48
+      var size = settings.particleSize * (0.65 + Math.random() * 0.75)
+      var life = Math.round(settings.particleLifetime * (0.72 + Math.random() * 0.55))
+      var item = particleComponent.createObject(layer.particleField, {
+        startX: localX,
+        startY: localY,
+        endX: endX,
+        endY: endY,
+        controlX: controlX,
+        controlY: controlY,
+        life: life,
+        width: size,
+        height: size,
+        opacity: settings.opacity,
+        color: colorFor(settings.particleColorMode, settings.customParticleColor),
+        release: function() { root.activeParticles = Math.max(0, root.activeParticles - 1) }
+      })
+      if (item) activeParticles += 1
+    }
+    if (settings.shakeEnabled && settings.shakeStrength > 0) layer.shake(settings)
+    burstSerial += 1
+  }
+
+  Component { id: particleComponent; HyperPowerParticle {} }
+
+  Variants {
+    id: surfaceRepeater
+    model: Quickshell.screens
+
+    PanelWindow {
+      id: panel
+      required property var modelData
+      readonly property var screenInfo: modelData
+      property alias particleField: field
+
+      screen: modelData
+      visible: root.opened && root.activeParticles > 0
+      anchors { top: true; right: true; bottom: true; left: true }
+      color: "transparent"
+      exclusionMode: ExclusionMode.Ignore
+      mask: Region {}
+      WlrLayershell.namespace: "omapower-particles"
+      WlrLayershell.layer: WlrLayer.Overlay
+      WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+
+      Connections {
+        target: root.service
+        ignoreUnknownSignals: true
+        function onBurstRequested(event) { root.emitBurst(panel, event) }
+      }
+
+      function shake(settings) {
+        shakeX.stop()
+        shakeY.stop()
+        field.x = 0
+        field.y = 0
+        shakeX.to = (Math.random() - 0.5) * 2 * settings.shakeStrength
+        shakeY.to = (Math.random() - 0.5) * 2 * settings.shakeStrength
+        shakeX.duration = Math.max(10, Math.round(settings.shakeDuration / 2))
+        shakeY.duration = shakeX.duration
+        shakeX.start()
+        shakeY.start()
+      }
+
+      Item {
+        id: field
+        anchors.fill: parent
+      }
+
+      SequentialAnimation {
+        id: shakeX
+        property real to: 0
+        property int duration: 45
+        NumberAnimation { target: field; property: "x"; to: shakeX.to; duration: shakeX.duration; easing.type: Easing.OutQuad }
+        NumberAnimation { target: field; property: "x"; to: 0; duration: shakeX.duration; easing.type: Easing.InOutQuad }
+      }
+
+      SequentialAnimation {
+        id: shakeY
+        property real to: 0
+        property int duration: 45
+        NumberAnimation { target: field; property: "y"; to: shakeY.to; duration: shakeY.duration; easing.type: Easing.OutQuad }
+        NumberAnimation { target: field; property: "y"; to: 0; duration: shakeY.duration; easing.type: Easing.InOutQuad }
+      }
+    }
+  }
+}

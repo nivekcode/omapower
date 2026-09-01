@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.nivekcode.omapower",
+  "name": "OmaPower",
+  "version": "0.1.0",
+  "author": "nivekcode",
+  "description": "Hyperpower-style typing particles for Omarchy",
+  "kinds": [
+    "service",
+    "overlay"
+  ],
+  "entryPoints": {
+    "service": "HyperPowerService.qml",
+    "overlay": "HyperPowerOverlay.qml"
+  },
+  "keepLoaded": true
+}
