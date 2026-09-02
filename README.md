@@ -9,7 +9,7 @@ Omarchy shell. It runs inside the existing `omarchy-shell` process and uses the
 full cyan, blue, indigo, purple, and white Omarchy logo palette by default.
 
 The plugin targets Omarchy 4.0.1's schema version 1 plugin API. The current
-plugin release is 0.6.2.
+plugin release is 0.6.3.
 
 ## What works
 
@@ -30,7 +30,12 @@ plugin release is 0.6.2.
 
 ```bash
 omarchy plugin add https://github.com/nivekcode/omapower --enable
+omarchy restart shell
 ```
+
+The restart is required after an install, update, or reinstall. OmaPower's
+background service stays loaded inside `omarchy-shell`, so a plugin rescan can
+update the files without replacing the running service instance.
 
 For local development:
 
@@ -86,6 +91,11 @@ device type. This works with Bash and other shells, but it can also create one
 burst when mouse activity resumes while a terminal is focused. Continuous
 pointer movement does not produce a stream of bursts because the monitor must
 be idle for 10 ms before it can resume again.
+
+If the native Bash hook is present, its exact cursor report takes priority even
+when a reinstall has reset this setting to `activity`. The matching Wayland
+activity event is discarded, so it cannot replace the exact position with the
+window approximation.
 
 ```bash
 ./scripts/omapowerctl set inputMode activity
@@ -250,7 +260,12 @@ shellcheck scripts/omapowerctl
 ```
 
 Use `omarchy-shell shell rescanPlugins` after copying a new local checkout if
-the file watcher has not reloaded it. `omarchy restart shell` is the last resort.
+the file watcher has not reloaded it. Restart the shell after changing the
+keep-loaded service itself:
+
+```bash
+omarchy restart shell
+```
 
 ## License
 

@@ -26,6 +26,10 @@ Item {
   property var pendingBurst: null
   property bool typedBurstPending: false
   property string typedBurstSource: "terminal-input"
+  property var exactInputWindows: ({})
+  property int exactReportsReceived: 0
+  property string lastExactReportResult: "none"
+  property var monitorScales: ({})
   property var caretPositions: ({})
   property var lastBurstTarget: null
 
@@ -99,6 +103,56 @@ Item {
     return screens.length > 0 ? screens[0] : null
   }
 
+  function validMonitorScale(monitor) {
+    var direct = Number(monitor && monitor.scale ? monitor.scale : 0)
+    if (isFinite(direct) && direct > 0) return direct
+    var ipc = monitor && monitor.lastIpcObject ? monitor.lastIpcObject : null
+    var reported = Number(ipc && ipc.scale ? ipc.scale : 0)
+    return isFinite(reported) && reported > 0 ? reported : 0
+  }
+
+  function monitorScaleForScreen(screen) {
+    if (!screen) return 0
+    var cached = Number(monitorScales[String(screen.name)] || 0)
+    if (isFinite(cached) && cached > 0) return cached
+    var direct = Hyprland.monitorFor(screen)
+    var scale = validMonitorScale(direct)
+    if (scale > 0) return scale
+
+    // monitorFor() can be empty or incomplete after a shell restart. Match
+    // the refreshed Hyprland model by output name so fractional scaling stays
+    // exact instead of being inferred from the terminal's unused edge pixels.
+    var monitors = Hyprland.monitors && Hyprland.monitors.values ? Hyprland.monitors.values : []
+    for (var i = 0; i < monitors.length; i++) {
+      var monitor = monitors[i]
+      if (String(monitor && monitor.name ? monitor.name : "") !== String(screen.name)) continue
+      scale = validMonitorScale(monitor)
+      if (scale > 0) return scale
+    }
+    return 0
+  }
+
+  function updateMonitorScales(rawJson) {
+    try {
+      var parsed = JSON.parse(String(rawJson || "[]"))
+      if (!Array.isArray(parsed)) return
+      var next = ({})
+      for (var i = 0; i < parsed.length; i++) {
+        var entry = parsed[i]
+        var name = String(entry && entry.name ? entry.name : "")
+        var scale = Number(entry && entry.scale ? entry.scale : 0)
+        if (name && isFinite(scale) && scale > 0) next[name] = scale
+      }
+      monitorScales = next
+    } catch (e) {
+      console.warn("OmaPower: could not read Hyprland monitor scales:", e)
+    }
+  }
+
+  function refreshMonitorScales() {
+    if (!monitorScaleProcess.running) monitorScaleProcess.running = true
+  }
+
   function windowKey(toplevel, ipc) {
     return String((toplevel && toplevel.address) || (ipc && ipc.address) || "").toLowerCase()
   }
@@ -107,6 +161,24 @@ Item {
     if (!settings.caretTrackingEnabled) return null
     var key = windowKey(toplevel, ipc)
     return key ? caretPositions[key] || null : null
+  }
+
+  function markFocusedWindowExact() {
+    var top = activeToplevel()
+    var ipc = top && top.lastIpcObject ? top.lastIpcObject : null
+    var key = windowKey(top, ipc)
+    if (!key) return
+    var next = ({})
+    for (var existing in exactInputWindows) next[existing] = exactInputWindows[existing]
+    next[key] = true
+    exactInputWindows = next
+  }
+
+  function focusedWindowHasExactInput() {
+    var top = activeToplevel()
+    var ipc = top && top.lastIpcObject ? top.lastIpcObject : null
+    var key = windowKey(top, ipc)
+    return key ? exactInputWindows[key] === true : false
   }
 
   function setCaret(rowValue, columnValue, rowsValue, columnsValue, anchorValue, cellHeightValue, cellWidthValue) {
@@ -189,9 +261,7 @@ Item {
     var height = Number(size[1])
     var screen = screenForPoint(left + width / 2, topY + height / 2)
     if (!screen) return null
-    var monitor = top.monitor || Hyprland.monitorFor(screen)
-    var outputScale = Number(monitor && monitor.scale ? monitor.scale : 0)
-    if (!isFinite(outputScale) || outputScale <= 0) outputScale = 0
+    var outputScale = monitorScaleForScreen(screen)
     var caret = caretFor(top, ipc)
     var x = left + width * settings.originXRatio
     var y = topY + height - settings.originBottomOffset
@@ -295,8 +365,10 @@ Item {
       return
     }
     if (fields[0] === "type" && (fields.length === 5 || fields.length === 7)) {
-      if (settings.inputMode !== "socket" && settings.inputMode !== "both") return
-      if (setCaret(fields[1], fields[2], fields[3], fields[4], "cursor", fields[5], fields[6]) === "ok") {
+      exactReportsReceived += 1
+      lastExactReportResult = setCaret(fields[1], fields[2], fields[3], fields[4], "cursor", fields[5], fields[6])
+      if (lastExactReportResult === "ok") {
+        markFocusedWindowExact()
         queueTypedBurst("bash-readline")
       }
       return
@@ -310,6 +382,9 @@ Item {
   function handleActivityChanged() {
     if (activityMonitor.isIdle) return
     if (settings.inputMode !== "activity" && settings.inputMode !== "both") return
+    // Once a terminal proves that it has an exact native hook, never let a
+    // later mouse or idle activity event replace its cursor with an estimate.
+    if (focusedWindowHasExactInput()) return
     advanceFocusedCaret()
     queueTypedBurst("wayland-activity")
   }
@@ -318,9 +393,12 @@ Item {
     var name = String(event && event.name ? event.name : "")
     if (name.indexOf("activewindow") === 0 || name.indexOf("openwindow") === 0
         || name.indexOf("movewindow") === 0 || name.indexOf("resizewindow") === 0
-        || name === "focusedmon") {
+        || name === "focusedmon" || name.indexOf("monitor") === 0) {
       Hyprland.refreshToplevels()
-      if (name === "focusedmon") Hyprland.refreshMonitors()
+      if (name === "focusedmon" || name.indexOf("monitor") === 0) {
+        Hyprland.refreshMonitors()
+        refreshMonitorScales()
+      }
     }
   }
 
@@ -366,7 +444,13 @@ Item {
     var screens = []
     for (var i = 0; i < Quickshell.screens.length; i++) {
       var screen = Quickshell.screens[i]
-      screens.push({ name: String(screen.name), x: screen.x, y: screen.y, width: screen.width, height: screen.height })
+      screens.push({
+        name: String(screen.name),
+        x: screen.x,
+        y: screen.y,
+        width: screen.width,
+        height: screen.height
+      })
     }
     return {
       hasActiveToplevel: top !== null,
@@ -375,6 +459,7 @@ Item {
       at: ipc && ipc.at ? [Number(ipc.at[0]), Number(ipc.at[1])] : [],
       size: ipc && ipc.size ? [Number(ipc.size[0]), Number(ipc.size[1])] : [],
       screens: screens,
+      monitorScales: monitorScales,
       caret: caretFor(top, ipc),
       target: focusedTarget(false),
       lastBurstTarget: lastBurstTarget
@@ -449,6 +534,15 @@ Item {
   }
 
   Process {
+    id: monitorScaleProcess
+    command: ["hyprctl", "-j", "monitors"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.updateMonitorScales(text)
+    }
+  }
+
+  Process {
     id: socketCleanup
     command: ["rm", "-f", root.socketPath]
     onExited: root.socketReady = true
@@ -471,6 +565,8 @@ Item {
         enabled: root.effectEnabled,
         socket: root.socketPath,
         acceptedBursts: root.acceptedBursts,
+        exactReportsReceived: root.exactReportsReceived,
+        lastExactReportResult: root.lastExactReportResult,
         lastBurstTarget: root.lastBurstTarget,
         settings: root.settings
       })
@@ -483,6 +579,7 @@ Item {
     reloadSettings()
     Hyprland.refreshMonitors()
     Hyprland.refreshToplevels()
+    refreshMonitorScales()
     socketCleanup.running = true
     settingsRetry.start()
   }
