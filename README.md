@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/omapower-logo-omarchy.png" alt="OmaPower" width="900">
+  <img src="assets/omapower-logo-omarchy-v2.png" alt="OmaPower muscular grandma pixel logo" width="900">
 </p>
 
 # OmaPower
