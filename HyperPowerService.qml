@@ -291,7 +291,7 @@ Item {
       if (settings.inputMode !== "socket" && settings.inputMode !== "both") return
       if (setCaret(fields[1], fields[2], fields[3], fields[4], "cursor", fields[5], fields[6]) === "ok") {
         typedBurstPending = true
-        if (!typedBurstDelay.running) typedBurstDelay.start()
+        typedBurstDelay.restart()
       }
       return
     }
@@ -398,9 +398,9 @@ Item {
     }
   }
 
-  // Hyperpower schedules particle creation after the terminal cursor-move
-  // frame and throttles it to 25 ms. Waiting here lets Foot paint the block
-  // cursor before the overlay uses the newest reported cell.
+  // Wait until Foot has painted the newest cursor move. Restarting this short
+  // delay coalesces keys that arrive inside one redraw cycle, so a queued burst
+  // cannot remain attached to an older character while the cursor moves on.
   Timer {
     id: typedBurstDelay
     interval: 25
