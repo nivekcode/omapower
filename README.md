@@ -9,7 +9,7 @@ Omarchy shell. It runs inside the existing `omarchy-shell` process and uses the
 full cyan, blue, indigo, purple, and white Omarchy logo palette by default.
 
 The plugin targets Omarchy 4.0.1's schema version 1 plugin API. The current
-plugin release is 0.6.1.
+plugin release is 0.6.2.
 
 ## What works
 
@@ -137,11 +137,14 @@ Install it once, then open a new terminal:
 
 The installer builds `~/.cache/omapower/omapower-readline.so` against the
 installed Bash headers and selects socket mode. Keeping the compiled module out
-of the plugin directory prevents an installation-time shell reload. After each
-native self-insert, the overlay waits 25 ms for Foot to paint and starts the
-burst at the leading edge of the reported block cursor. Keys inside one redraw
-cycle collapse to the newest position. The native function receives Readline's
-key argument because Readline calls it, but it never sends, logs, or retains that
+of the plugin directory prevents an installation-time shell reload. Foot's
+terminal API reports the grid's physical pixel size, so the native hook sends
+the exact cell width and height with each cursor position. This avoids
+accumulated drift in wide windows and on lower terminal rows. After each native
+self-insert, the overlay waits 25 ms for Foot to paint and starts the burst at
+the leading edge of the reported block cursor. Keys inside one redraw cycle
+collapse to the newest position. The native function receives Readline's key
+argument because Readline calls it, but it never sends, logs, or retains that
 value or the command line. The Unix socket receives cursor-grid numbers only.
 
 Each terminal loads its own non-exported integration guard. A Foot window

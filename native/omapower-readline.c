@@ -110,7 +110,7 @@ static void omapower_cursor_position(const char *text, size_t length,
 }
 
 static void omapower_report_cursor(void) {
-  struct winsize terminal_size;
+  struct winsize terminal_size = {0};
   int row;
   int column;
   char message[128];
@@ -122,8 +122,16 @@ static void omapower_report_cursor(void) {
 
   omapower_cursor_position(rl_line_buffer, (size_t)rl_point, &row, &column);
 
-  snprintf(message, sizeof(message), "type %d %d %d %d\n",
-           row, column, omapower_rows, omapower_columns);
+  if (terminal_size.ws_xpixel > 0 && terminal_size.ws_ypixel > 0) {
+    double cell_height = (double)terminal_size.ws_ypixel / omapower_rows;
+    double cell_width = (double)terminal_size.ws_xpixel / omapower_columns;
+    snprintf(message, sizeof(message), "type %d %d %d %d %.6f %.6f\n",
+             row, column, omapower_rows, omapower_columns,
+             cell_height, cell_width);
+  } else {
+    snprintf(message, sizeof(message), "type %d %d %d %d\n",
+             row, column, omapower_rows, omapower_columns);
+  }
   omapower_send(message);
 }
 
