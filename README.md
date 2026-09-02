@@ -148,6 +148,10 @@ does not accumulate positioning error. The hook
 does not emit particles for deletion, completion, bracketed paste, or non-ASCII
 input. It never sends the command line or typed character.
 
+Each terminal loads its own non-exported integration guard. A Foot window
+opened through Super+Enter cannot inherit a stale "already loaded" state from
+its parent process.
+
 ## Caret position
 
 Generic Wayland and Hyprland do not expose terminal caret coordinates.

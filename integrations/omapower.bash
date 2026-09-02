@@ -3,8 +3,11 @@
 # leave Bash.
 
 [[ $- == *i* ]] || return 0
-[[ ${OMAPOWER_BASH_INTEGRATION_LOADED:-0} == 7 ]] && return 0
-export OMAPOWER_BASH_INTEGRATION_LOADED=7
+[[ ${OMAPOWER_BASH_INTEGRATION_LOADED:-0} == 8 ]] && return 0
+# Keep the guard local to this Bash process. Exporting it made child terminals
+# skip setup even though shell functions and Readline bindings are not inherited.
+unset OMAPOWER_BASH_INTEGRATION_LOADED
+OMAPOWER_BASH_INTEGRATION_LOADED=8
 
 _OMAPOWER_SOCKET=${XDG_RUNTIME_DIR:-/run/user/$UID}/omapower.sock
 _OMAPOWER_ROWS=${LINES:-1}
