@@ -125,12 +125,12 @@ static void omapower_report_cursor(void) {
   if (terminal_size.ws_xpixel > 0 && terminal_size.ws_ypixel > 0) {
     double cell_height = (double)terminal_size.ws_ypixel / omapower_rows;
     double cell_width = (double)terminal_size.ws_xpixel / omapower_columns;
-    snprintf(message, sizeof(message), "type %d %d %d %d %.6f %.6f\n",
+    snprintf(message, sizeof(message), "type %d %d %d %d %.6f %.6f %ld\n",
              row, column, omapower_rows, omapower_columns,
-             cell_height, cell_width);
+             cell_height, cell_width, (long)getppid());
   } else {
-    snprintf(message, sizeof(message), "type %d %d %d %d\n",
-             row, column, omapower_rows, omapower_columns);
+    snprintf(message, sizeof(message), "type %d %d %d %d 0 0 %ld\n",
+             row, column, omapower_rows, omapower_columns, (long)getppid());
   }
   omapower_send(message);
 }
@@ -215,9 +215,9 @@ int omapower_builtin(WORD_LIST *list) {
         return EXECUTION_FAILURE;
       list = list->next;
     }
-    snprintf(message, sizeof(message), "caret %d %d %d %d\n",
+    snprintf(message, sizeof(message), "caret %d %d %d %d %ld\n",
              omapower_prompt_row, omapower_prompt_column,
-             omapower_rows, omapower_columns);
+             omapower_rows, omapower_columns, (long)getppid());
     omapower_send(message);
     return EXECUTION_SUCCESS;
   }

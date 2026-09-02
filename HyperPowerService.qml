@@ -34,6 +34,7 @@ Item {
   property var lastBurstTarget: null
 
   signal burstRequested(var event)
+  signal particlesResetRequested()
   signal settingsReloaded()
 
   HyperPower { id: model }
@@ -181,10 +182,13 @@ Item {
     return key ? exactInputWindows[key] === true : false
   }
 
-  function setCaret(rowValue, columnValue, rowsValue, columnsValue, anchorValue, cellHeightValue, cellWidthValue) {
+  function setCaret(rowValue, columnValue, rowsValue, columnsValue, anchorValue, cellHeightValue, cellWidthValue, processIdValue) {
     var top = activeToplevel()
     var ipc = top && top.lastIpcObject ? top.lastIpcObject : null
     if (!top || !ipc || !isSupportedTerminal(top, ipc)) return "not-terminal"
+    var reportedPid = Math.round(Number(processIdValue || 0))
+    var windowPid = Math.round(Number(ipc.pid || 0))
+    if (reportedPid > 0 && windowPid > 0 && reportedPid !== windowPid) return "wrong-terminal"
     var row = Math.max(1, Math.round(Number(rowValue)))
     var column = Math.max(1, Math.round(Number(columnValue)))
     var rows = Math.max(1, Math.round(Number(rowsValue)))
@@ -360,13 +364,20 @@ Item {
   function handleSocketLine(line) {
     var token = String(line || "").trim()
     var fields = token.split(/\s+/)
-    if (fields[0] === "caret" && fields.length === 5) {
-      setCaret(fields[1], fields[2], fields[3], fields[4], "cursor")
+    if (fields[0] === "caret" && (fields.length === 5 || fields.length === 6)) {
+      var caretResult = setCaret(fields[1], fields[2], fields[3], fields[4], "cursor", 0, 0, fields[5])
+      if (caretResult === "ok") {
+        typedBurstPending = false
+        typedBurstDelay.stop()
+        particlesResetRequested()
+      }
       return
     }
-    if (fields[0] === "type" && (fields.length === 5 || fields.length === 7)) {
+    if (fields[0] === "type" && (fields.length === 5 || fields.length === 7 || fields.length === 8)) {
       exactReportsReceived += 1
-      lastExactReportResult = setCaret(fields[1], fields[2], fields[3], fields[4], "cursor", fields[5], fields[6])
+      lastExactReportResult = setCaret(
+        fields[1], fields[2], fields[3], fields[4], "cursor", fields[5], fields[6], fields[7]
+      )
       if (lastExactReportResult === "ok") {
         markFocusedWindowExact()
         queueTypedBurst("bash-readline")
@@ -489,11 +500,11 @@ Item {
     }
   }
 
-  // Wayland reports input before Foot paints it. Wait for the next terminal
-  // frame and coalesce only keys that arrive inside that redraw interval.
+  // Readline reports the post-insert cursor before Foot paints it. A short
+  // delay lets the terminal consume that redraw without making the burst lag.
   Timer {
     id: typedBurstDelay
-    interval: 25
+    interval: 8
     repeat: false
     onTriggered: {
       if (!root.typedBurstPending) return

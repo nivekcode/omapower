@@ -23,7 +23,7 @@ enable -f "$_OMAPOWER_NATIVE" omapower 2>/dev/null || return 0
 omapower configure "$_OMAPOWER_SOCKET" || return 0
 
 _omapower_report_caret() {
-  local rendered plain suffix row column linear tty_state prompt_newlines=0
+  local rendered plain suffix row column linear tty_state attempt captured=0 prompt_newlines=0
   IFS=' ' read -r _OMAPOWER_ROWS _OMAPOWER_COLUMNS < <(stty size < /dev/tty 2>/dev/null) || true
   [[ $_OMAPOWER_ROWS =~ ^[0-9]+$ && $_OMAPOWER_COLUMNS =~ ^[0-9]+$ ]] \
     && (( _OMAPOWER_ROWS > 0 && _OMAPOWER_COLUMNS > 0 )) || {
@@ -38,15 +38,22 @@ _omapower_report_caret() {
   # touching the live input path while the user is typing.
   tty_state=$(stty -g <&"$_OMAPOWER_TTY_FD" 2>/dev/null) || tty_state=
   [[ -n $tty_state ]] && stty -echo -icanon min 0 time 1 <&"$_OMAPOWER_TTY_FD" 2>/dev/null
-  printf '\e[6n' >&"$_OMAPOWER_TTY_FD"
-  if IFS=';' read -r -d R -t 0.20 row column <&"$_OMAPOWER_TTY_FD"; then
-    row=${row##*$'\e['}
-    if [[ $row =~ ^[0-9]+$ && $column =~ ^[0-9]+$ ]]; then
-      _OMAPOWER_PROMPT_ROW=$row
-      _OMAPOWER_PROMPT_COLUMN=$column
+  for attempt in 1 2; do
+    row=
+    column=
+    printf '\e[6n' >&"$_OMAPOWER_TTY_FD"
+    if IFS=';' read -r -d R -t 0.08 row column <&"$_OMAPOWER_TTY_FD"; then
+      row=${row##*$'\e['}
+      if [[ $row =~ ^[0-9]+$ && $column =~ ^[0-9]+$ ]]; then
+        _OMAPOWER_PROMPT_ROW=$row
+        _OMAPOWER_PROMPT_COLUMN=$column
+        captured=1
+        break
+      fi
     fi
-  fi
+  done
   [[ -n $tty_state ]] && stty "$tty_state" <&"$_OMAPOWER_TTY_FD" 2>/dev/null
+  (( captured )) || return 0
 
   rendered=${PS1@P}
   # ANSI byte ranges must use bytewise collation. Under locales such as

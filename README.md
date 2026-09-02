@@ -9,7 +9,7 @@ Omarchy shell. It runs inside the existing `omarchy-shell` process and uses the
 full cyan, blue, indigo, purple, and white Omarchy logo palette by default.
 
 The plugin targets Omarchy 4.0.1's schema version 1 plugin API. The current
-plugin release is 0.6.4.
+plugin release is 0.6.5.
 
 ## What works
 
@@ -134,10 +134,11 @@ disabled. Manual bursts still work.
 the terminal component's `cursorFrame.x/y` directly. An external Wayland overlay
 cannot access Foot's caret. OmaPower's Bash integration loads a small native
 Readline function compiled on the local machine. That function calls Readline's
-own `rl_insert`, reads the resulting cursor index, and sends only four numbers:
-cursor row, cursor column, terminal rows, and terminal columns. It does not run a
-shell callback or rewrite `READLINE_LINE` for each key. This keeps Foot's block
-cursor on the normal Readline rendering path.
+own `rl_insert`, reads the resulting cursor index, and sends numeric cursor and
+terminal-grid geometry plus Foot's process ID. It does not run a shell callback
+or rewrite `READLINE_LINE` for each key. This keeps Foot's block cursor on the
+normal Readline rendering path and prevents another terminal's prompt update
+from moving the active cursor.
 
 Install it once, then open a new terminal:
 
@@ -151,13 +152,16 @@ of the plugin directory prevents an installation-time shell reload. Foot's
 terminal API reports the grid's physical pixel size, so the native hook sends
 the exact cell width and height with each cursor position. This avoids
 accumulated drift in wide windows and on lower terminal rows. After each native
-self-insert, the overlay waits 25 ms for Foot to paint and starts the burst at
+self-insert, the overlay waits 8 ms for Foot to paint and starts the burst at
 the leading edge of the reported block cursor. Keys inside one redraw cycle
 collapse to the newest position. The native function receives Readline's key
 argument because Readline calls it, but it never sends, logs, or retains that
-value or the command line. The Unix socket receives cursor-grid numbers only.
+value or the command line. The Unix socket receives cursor-grid numbers and the
+terminal process identifier only.
 Prompt color and formatting codes are removed using bytewise parsing, so the
 system locale cannot count invisible Starship control sequences as cursor cells.
+When Bash draws a new prompt, OmaPower removes particles left on the previous
+command line before accepting new input.
 
 Each terminal loads its own non-exported integration guard. A Foot window
 opened through Super+Enter cannot inherit a stale "already loaded" state from
@@ -194,12 +198,12 @@ Settings persist in the plugin's entry in `~/.config/omarchy/shell.json`. The
 | --- | ---: | --- |
 | `particlesEnabled` | `true` | boolean |
 | `particleCount` | `6` | 1 to 24 |
-| `particleLifetime` | `500` | 120 to 2000 ms |
-| `particleSize` | `2.5` | 1 to 18 logical px |
+| `particleLifetime` | `360` | 120 to 2000 ms |
+| `particleSize` | `2.4` | 1 to 18 logical px |
 | `particleSpread` | `90` | 15 to 500 logical px |
-| `initialVelocity` | `175` | 20 to 800 |
-| `gravity` | `290` | -500 to 1400 |
-| `opacity` | `0.95` | 0.05 to 1 |
+| `initialVelocity` | `200` | 20 to 800 |
+| `gravity` | `360` | -500 to 1400 |
+| `opacity` | `0.96` | 0.05 to 1 |
 | `maximumActiveParticles` | `160` | 8 to 500 |
 | `particleTrail` | `false` | boolean |
 | `cursorFlash` | `false` | boolean |
@@ -234,7 +238,8 @@ explosion. Every spark begins at the exact emitter coordinate, then uses
 frame-rate-independent velocity, drag, gravity, exponential alpha decay, and a
 final eased fade. Particle cores stay square and align to physical pixels so
 the effect remains sharp at small sizes. Trails and the cursor flash remain
-available as options but are off by default.
+available as options but are off by default. Successive bursts rotate through
+every white, cyan, blue, indigo, and purple shade sampled from the Omarchy logo.
 
 All active particles on a monitor share one vsync-driven framebuffer canvas.
 The overlay stays mapped while OmaPower is enabled, which avoids layer-surface
@@ -243,10 +248,11 @@ creation on the first character after an idle period.
 ## Privacy and performance
 
 The Wayland activity monitor exposes no key or pointer data. The socket accepts
-the `burst` token and numeric terminal-grid positions from optional shell
-integrations. Events are used immediately and are not written to disk, logged,
-transmitted, or kept as a history. The service stores only a lifetime burst
-counter for its status output. Disable and re-enable the plugin to reset it.
+the `burst` token, numeric terminal-grid positions, and the terminal process
+identifier from optional shell integrations. Events are used immediately and
+are not written to disk, logged, transmitted, or kept as a history. The service
+stores only a lifetime burst counter for its status output. Disable and
+re-enable the plugin to reset it.
 
 Each monitor uses one canvas driven by Qt's vsync-aligned `FrameAnimation`.
 Particles share that clock, expired particles are removed in batches, and new

@@ -7,6 +7,7 @@ Canvas {
   property var flashes: []
   property int activeParticleCount: 0
   property int activeFlashCount: 0
+  property int paletteCursor: 0
   readonly property var omarchyPalette: [
     "#FFFFFF",
     "#DDF5FF",
@@ -33,11 +34,7 @@ Canvas {
 
   function particleColor(settings, accentColor, index, count) {
     if (settings.particleColorMode === "omarchy") {
-      var progress = count <= 1 ? 0.5 : index / (count - 1)
-      var paletteIndex = Math.max(0, Math.min(
-        omarchyPalette.length - 1,
-        Math.round(progress * (omarchyPalette.length - 1))
-      ))
+      var paletteIndex = (paletteCursor + index) % omarchyPalette.length
       return omarchyPalette[paletteIndex]
     }
     if (settings.particleColorMode === "rainbow") {
@@ -49,26 +46,26 @@ Canvas {
   }
 
   function addBurst(x, y, settings, capacity, accentColor) {
-    var requested = Math.max(1, Math.round(settings.particleCount * (0.78 + Math.random() * 0.44)))
+    var requested = Math.max(1, Math.round(settings.particleCount))
     var count = Math.min(requested, Math.max(0, capacity))
     if (count <= 0) return 0
 
     var next = particles.slice()
     var spreadScale = settings.particleSpread / 130
     for (var i = 0; i < count; i++) {
-      var speed = settings.initialVelocity * (0.88 + Math.random() * 0.24)
+      var speed = settings.initialVelocity * (0.94 + Math.random() * 0.12)
       var distribution = count <= 1 ? 0 : i / (count - 1) * 2 - 1
-      var horizontalBias = Math.max(-1, Math.min(1, distribution + (Math.random() - 0.5) * 0.24))
+      var horizontalBias = Math.max(-1, Math.min(1, distribution + (Math.random() - 0.5) * 0.14))
       next.push({
         x: x,
         y: y,
-        vx: horizontalBias * speed * 0.44 * spreadScale,
-        vy: -speed * (0.76 + Math.random() * 0.24),
+        vx: horizontalBias * speed * 0.40 * spreadScale,
+        vy: -speed * (0.82 + Math.random() * 0.16),
         gravity: settings.gravity,
-        drag: 0.976,
+        drag: 0.972,
         age: 0,
-        life: settings.particleLifetime * (0.88 + Math.random() * 0.24),
-        size: settings.particleSize * (0.78 + Math.random() * 0.36),
+        life: settings.particleLifetime * (0.94 + Math.random() * 0.12),
+        size: settings.particleSize * (0.88 + Math.random() * 0.24),
         opacity: settings.opacity,
         color: particleColor(settings, accentColor, i, count),
         trail: settings.particleTrail
@@ -90,9 +87,21 @@ Canvas {
       flashes = flashNext
       activeFlashCount = flashNext.length
     }
+    if (settings.particleColorMode === "omarchy")
+      paletteCursor = (paletteCursor + count) % omarchyPalette.length
 
     requestPaint()
     return count
+  }
+
+  function clearParticles() {
+    var released = particles.length
+    particles = []
+    flashes = []
+    activeParticleCount = 0
+    activeFlashCount = 0
+    if (released > 0) particlesReleased(released)
+    requestPaint()
   }
 
   function advance(frameSeconds) {
@@ -148,8 +157,8 @@ Canvas {
     for (var particleIndex = 0; particleIndex < particles.length; particleIndex++) {
       var particle = particles[particleIndex]
       var progress = particle.age / particle.life
-      var tailFade = 1 - smoothstep(0.68, 1, progress)
-      var exponentialFade = Math.pow(0.965, particle.age / 16.667)
+      var tailFade = 1 - smoothstep(0.58, 1, progress)
+      var exponentialFade = Math.pow(0.95, particle.age / 16.667)
       var alpha = particle.opacity * exponentialFade * tailFade
       var pop = progress < 0.07 ? 0.76 + 3.4 * progress : 1
       var shrink = 1 - 0.48 * smoothstep(0.28, 1, progress)

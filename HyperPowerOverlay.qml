@@ -62,6 +62,7 @@ Item {
         target: root.service
         ignoreUnknownSignals: true
         function onBurstRequested(event) { root.emitBurst(panel, event) }
+        function onParticlesResetRequested() { panel.particleField.clearParticles() }
       }
 
       function shake(settings) {
