@@ -25,6 +25,7 @@ Item {
   property int settingsReloadAttempts: 0
   property var pendingBurst: null
   property bool typedBurstPending: false
+  property string typedBurstSource: "terminal-input"
   property var caretPositions: ({})
   property var lastBurstTarget: null
 
@@ -167,6 +168,12 @@ Item {
     caretPositions = next
   }
 
+  function queueTypedBurst(source) {
+    typedBurstSource = String(source || "terminal-input")
+    typedBurstPending = true
+    typedBurstDelay.restart()
+  }
+
   function focusedTarget(requireTerminal) {
     var top = activeToplevel()
     var ipc = top && top.lastIpcObject ? top.lastIpcObject : null
@@ -290,14 +297,13 @@ Item {
     if (fields[0] === "type" && (fields.length === 5 || fields.length === 7)) {
       if (settings.inputMode !== "socket" && settings.inputMode !== "both") return
       if (setCaret(fields[1], fields[2], fields[3], fields[4], "cursor", fields[5], fields[6]) === "ok") {
-        typedBurstPending = true
-        typedBurstDelay.restart()
+        queueTypedBurst("bash-readline")
       }
       return
     }
     if (token === "burst" && (settings.inputMode === "socket" || settings.inputMode === "both")) {
       advanceFocusedCaret()
-      requestBurst("shell-integration", true, null)
+      queueTypedBurst("shell-integration")
     }
   }
 
@@ -305,7 +311,7 @@ Item {
     if (activityMonitor.isIdle) return
     if (settings.inputMode !== "activity" && settings.inputMode !== "both") return
     advanceFocusedCaret()
-    requestBurst("wayland-activity", true, null)
+    queueTypedBurst("wayland-activity")
   }
 
   function refreshForHyprlandEvent(event) {
@@ -398,9 +404,8 @@ Item {
     }
   }
 
-  // Wait until Foot has painted the newest cursor move. Restarting this short
-  // delay coalesces keys that arrive inside one redraw cycle, so a queued burst
-  // cannot remain attached to an older character while the cursor moves on.
+  // Wayland reports input before Foot paints it. Wait for the next terminal
+  // frame and coalesce only keys that arrive inside that redraw interval.
   Timer {
     id: typedBurstDelay
     interval: 25
@@ -408,7 +413,7 @@ Item {
     onTriggered: {
       if (!root.typedBurstPending) return
       root.typedBurstPending = false
-      root.requestBurst("bash-readline", true, null)
+      root.requestBurst(root.typedBurstSource, true, null)
     }
   }
 

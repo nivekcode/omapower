@@ -3,10 +3,25 @@ set -euo pipefail
 
 plugin_dir=${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins/io.github.nivekcode.omapower
 integration="$plugin_dir/integrations/omapower.bash"
+native_source="$plugin_dir/native/omapower-readline.c"
+native_output="$plugin_dir/native/omapower-readline.so"
 bashrc=${HOME}/.bashrc
 source_line="source \"$integration\""
 
 [[ -f $integration ]] || { printf 'OmaPower integration not found: %s\n' "$integration" >&2; exit 1; }
+[[ -f $native_source ]] || { printf 'OmaPower native source not found: %s\n' "$native_source" >&2; exit 1; }
+command -v cc >/dev/null || { printf 'A C compiler is required to install the native Readline hook.\n' >&2; exit 1; }
+
+native_tmp=$(mktemp "${plugin_dir}/native/.omapower-readline.so.XXXXXX")
+trap 'rm -f "$native_tmp"' EXIT
+cc -fPIC -shared -O2 -Wall -Wextra -Werror \
+  -I/usr/include/bash -I/usr/include/bash/builtins -I/usr/include/bash/include \
+  -o "$native_tmp" "$native_source"
+chmod 755 "$native_tmp"
+mv "$native_tmp" "$native_output"
+trap - EXIT
+printf 'Built the OmaPower native Readline hook.\n'
+
 touch "$bashrc"
 if grep -Fqx "$source_line" "$bashrc"; then
   printf 'OmaPower Bash integration is already installed.\n'
@@ -30,5 +45,5 @@ flash=$(omarchy-shell omapower set cursorFlash false)
 # Omarchy writes plugin settings asynchronously. Give that write time to land
 # before a caller restarts the shell.
 sleep 1
-printf 'OmaPower input mode set to socket for exact Bash tracking.\n'
+printf 'OmaPower input mode set to the native Bash socket hook.\n'
 printf 'OmaPower cursor flash disabled.\n'

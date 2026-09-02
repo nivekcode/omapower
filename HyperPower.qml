@@ -19,7 +19,7 @@ QtObject {
     particleColorMode: "omarchy",
     customParticleColor: "#ffffff",
     inputMode: "activity",
-    activityResetDelay: 30,
+    activityResetDelay: 10,
     caretTrackingEnabled: true,
     terminalPaddingX: 14,
     terminalPaddingY: 14,

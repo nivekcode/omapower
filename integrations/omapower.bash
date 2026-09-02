@@ -3,37 +3,25 @@
 # leave Bash.
 
 [[ $- == *i* ]] || return 0
-[[ ${OMAPOWER_BASH_INTEGRATION_LOADED:-0} == 8 ]] && return 0
-# Keep the guard local to this Bash process. Exporting it made child terminals
-# skip setup even though shell functions and Readline bindings are not inherited.
+[[ ${OMAPOWER_BASH_INTEGRATION_LOADED:-0} == 10 ]] && return 0
+# Keep the guard local to this Bash process. Child shells do not inherit the
+# prompt hook or native Readline registration.
 unset OMAPOWER_BASH_INTEGRATION_LOADED
-OMAPOWER_BASH_INTEGRATION_LOADED=8
+OMAPOWER_BASH_INTEGRATION_LOADED=10
 
 _OMAPOWER_SOCKET=${XDG_RUNTIME_DIR:-/run/user/$UID}/omapower.sock
+_OMAPOWER_INTEGRATION_DIR=${BASH_SOURCE[0]%/*}
+_OMAPOWER_NATIVE=${_OMAPOWER_INTEGRATION_DIR}/../native/omapower-readline.so
 _OMAPOWER_ROWS=${LINES:-1}
 _OMAPOWER_COLUMNS=${COLUMNS:-1}
 _OMAPOWER_PROMPT_ROW=1
 _OMAPOWER_PROMPT_COLUMN=1
 _OMAPOWER_PROMPT_WIDTH=0
-_OMAPOWER_FD=
 
 exec {_OMAPOWER_TTY_FD}<>/dev/tty || return 0
-
-_omapower_connect() {
-  if [[ ${_OMAPOWER_FD:-} =~ ^[0-9]+$ ]]; then
-    exec {_OMAPOWER_FD}>&-
-  fi
-  [[ -S $_OMAPOWER_SOCKET ]] || { _OMAPOWER_FD=; return 1; }
-  exec {_OMAPOWER_FD}> >(exec socat -u - "UNIX-CONNECT:$_OMAPOWER_SOCKET" 2>/dev/null)
-}
-
-_omapower_send() {
-  local message=$1
-  if [[ ! ${_OMAPOWER_FD:-} =~ ^[0-9]+$ ]] || ! printf '%s\n' "$message" >&"$_OMAPOWER_FD" 2>/dev/null; then
-    _omapower_connect || return 0
-    printf '%s\n' "$message" >&"$_OMAPOWER_FD" 2>/dev/null || true
-  fi
-}
+[[ -r $_OMAPOWER_NATIVE ]] || return 0
+enable -f "$_OMAPOWER_NATIVE" omapower 2>/dev/null || return 0
+omapower configure "$_OMAPOWER_SOCKET" || return 0
 
 _omapower_report_caret() {
   local rendered plain suffix row column linear tty_state prompt_newlines=0
@@ -47,13 +35,12 @@ _omapower_report_caret() {
   (( _OMAPOWER_COLUMNS > 0 )) || _OMAPOWER_COLUMNS=1
 
   # Capture the terminal position once, before Bash draws the next prompt.
-  # Per-key terminal queries race Readline's input parser and can leak reply
-  # bytes into the command line. Every keystroke below is therefore pure
-  # arithmetic from this stable prompt anchor.
+  # Foot answers this query immediately. Keeping it outside Readline avoids
+  # touching the live input path while the user is typing.
   tty_state=$(stty -g <&"$_OMAPOWER_TTY_FD" 2>/dev/null) || tty_state=
   [[ -n $tty_state ]] && stty -echo -icanon min 0 time 1 <&"$_OMAPOWER_TTY_FD" 2>/dev/null
   printf '\e[6n' >&"$_OMAPOWER_TTY_FD"
-  if IFS=';' read -r -d R -t 0.12 row column <&"$_OMAPOWER_TTY_FD"; then
+  if IFS=';' read -r -d R -t 0.03 row column <&"$_OMAPOWER_TTY_FD"; then
     row=${row##*$'\e['}
     if [[ $row =~ ^[0-9]+$ && $column =~ ^[0-9]+$ ]]; then
       _OMAPOWER_PROMPT_ROW=$row
@@ -84,36 +71,8 @@ _omapower_report_caret() {
     _OMAPOWER_PROMPT_COLUMN=$((linear % _OMAPOWER_COLUMNS + 1))
   fi
   (( _OMAPOWER_PROMPT_ROW > _OMAPOWER_ROWS )) && _OMAPOWER_PROMPT_ROW=$_OMAPOWER_ROWS
-}
-
-_omapower_after_insert() {
-  local row column linear point current_rows current_columns
-  current_rows=${LINES:-$_OMAPOWER_ROWS}
-  current_columns=${COLUMNS:-$_OMAPOWER_COLUMNS}
-  if [[ $current_rows =~ ^[0-9]+$ && $current_columns =~ ^[0-9]+$ ]] \
-      && (( current_rows > 0 && current_columns > 0 )) \
-      && (( current_rows != _OMAPOWER_ROWS || current_columns != _OMAPOWER_COLUMNS )); then
-    _OMAPOWER_ROWS=$current_rows
-    _OMAPOWER_COLUMNS=$current_columns
-  fi
-  point=${READLINE_POINT:-0}
-  linear=$((_OMAPOWER_PROMPT_COLUMN - 1 + point))
-  row=$((_OMAPOWER_PROMPT_ROW + linear / _OMAPOWER_COLUMNS))
-  (( row > _OMAPOWER_ROWS )) && row=$_OMAPOWER_ROWS
-  column=$((linear % _OMAPOWER_COLUMNS + 1))
-  _omapower_send "type $row $column $_OMAPOWER_ROWS $_OMAPOWER_COLUMNS"
-}
-
-_omapower_insert_ascii() {
-  local code=$1 char hex before after point=${READLINE_POINT:-0}
-  local LC_ALL=C
-  printf -v hex '%02x' "$code"
-  printf -v char '%b' "\\x$hex"
-  before=${READLINE_LINE:0:point}
-  after=${READLINE_LINE:point}
-  READLINE_LINE=$before$char$after
-  READLINE_POINT=$((point + 1))
-  _omapower_after_insert
+  omapower anchor "$_OMAPOWER_PROMPT_ROW" "$_OMAPOWER_PROMPT_COLUMN" \
+    "$_OMAPOWER_ROWS" "$_OMAPOWER_COLUMNS"
 }
 
 if [[ ";${PROMPT_COMMAND[*]};" != *';_omapower_report_caret;'* ]]; then
@@ -123,15 +82,3 @@ if [[ ";${PROMPT_COMMAND[*]};" != *';_omapower_report_caret;'* ]]; then
     PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND;}_omapower_report_caret"
   fi
 fi
-
-_omapower_connect || true
-
-# Insert printable ASCII directly through Readline's bind-x API. Avoiding the
-# quoted-insert macro removes the extra escape-sequence cycle that made Foot's
-# block cursor flicker while typing.
-for ((_omapower_code = 32; _omapower_code <= 126; _omapower_code++)); do
-  printf -v _omapower_binding '"\\x%02x":_omapower_insert_ascii %d' "$_omapower_code" "$_omapower_code"
-  bind -m emacs-standard -x "$_omapower_binding"
-  bind -m vi-insert -x "$_omapower_binding"
-done
-unset _omapower_code _omapower_binding

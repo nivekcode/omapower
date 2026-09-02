@@ -9,7 +9,7 @@ Omarchy shell. It runs inside the existing `omarchy-shell` process and uses the
 full cyan, blue, indigo, purple, and white Omarchy logo palette by default.
 
 The plugin targets Omarchy 4.0.1's schema version 1 plugin API. The current
-plugin release is 0.5.2.
+plugin release is 0.6.0.
 
 ## What works
 
@@ -17,8 +17,7 @@ plugin release is 0.5.2.
   speed, lifetime, gravity, fade, and color
 - Automatic Bash-compatible input activity through Wayland's idle-notify
   protocol
-- Foot cursor-grid positioning through an optional content-blind Bash prompt
-  hook
+- Foot cursor-grid positioning through an optional native Bash Readline hook
 - Foot, Ghostty, Kitty, and Alacritty focus filtering through Quickshell's
   native Hyprland integration
 - One click-through overlay per monitor, using Wayland logical coordinates
@@ -81,16 +80,16 @@ use `/dev/input`, a global shortcut for every key, accessibility scraping, or
 terminal screen capture.
 
 The default `activity` input mode uses Wayland's idle-notify protocol with a
-30 ms reset delay. It sees only that user activity resumed, then checks whether
+10 ms reset delay. It sees only that user activity resumed, then checks whether
 a supported terminal is focused. It does not receive a key code, character, or
 device type. This works with Bash and other shells, but it can also create one
 burst when mouse activity resumes while a terminal is focused. Continuous
 pointer movement does not produce a stream of bursts because the monitor must
-be idle for 30 ms before it can resume again.
+be idle for 10 ms before it can resume again.
 
 ```bash
 ./scripts/omapowerctl set inputMode activity
-./scripts/omapowerctl set activityResetDelay 30
+./scripts/omapowerctl set activityResetDelay 10
 ```
 
 ### Optional exact Zsh integration
@@ -119,19 +118,16 @@ cursor movement, deletion, completion, or bracketed paste. Fish does not have
 an equally small, content-blind hook, so its automatic integration remains
 disabled. Manual bursts still work.
 
-### Exact Bash and Foot cursor integration
+### Native Bash and Foot cursor integration
 
 [Hyperpower](https://github.com/vercel/hyperpower) runs inside Hyper and receives
 the terminal component's `cursorFrame.x/y` directly. An external Wayland overlay
-cannot access Foot's caret. OmaPower's
-Bash integration wraps Readline's printable self-insert action. For each typed
-character, it sends only four numbers: cursor row, cursor column, terminal rows,
-and terminal columns. The integration captures the terminal position once before
-each prompt, then combines that stable anchor with the prompt's display width and
-Readline's post-insert cursor index to recover the visible cursor cell. It never
-injects a terminal query while Readline is processing a keystroke.
-It does not send the character or command line. The installer switches OmaPower
-to `socket` mode so fast typing cannot be merged by Wayland's idle monitor.
+cannot access Foot's caret. OmaPower's Bash integration loads a small native
+Readline function compiled on the local machine. That function calls Readline's
+own `rl_insert`, reads the resulting cursor index, and sends only four numbers:
+cursor row, cursor column, terminal rows, and terminal columns. It does not run a
+shell callback or rewrite `READLINE_LINE` for each key. This keeps Foot's block
+cursor on the normal Readline rendering path.
 
 Install it once, then open a new terminal:
 
@@ -139,14 +135,13 @@ Install it once, then open a new terminal:
 ~/.config/omarchy/plugins/io.github.nivekcode.omapower/scripts/install-bash-integration
 ```
 
-Readline invokes the hook after inserting a printable character. The overlay
-fits the reported terminal grid to the live Foot client geometry, waits 25 ms
-after the newest cursor move for Foot to redraw, and starts the burst at the
-leading edge of the visible block cursor. Keys inside the same redraw cycle
-collapse to the newest position. Backspacing or moving the cursor before typing
-does not accumulate positioning error. The hook
-does not emit particles for deletion, completion, bracketed paste, or non-ASCII
-input. It never sends the command line or typed character.
+The installer builds `native/omapower-readline.so` against the installed Bash
+headers and selects socket mode. After each native self-insert, the overlay waits
+25 ms for Foot to paint and starts the burst at the leading edge of the reported
+block cursor. Keys inside one redraw cycle collapse to the newest position. The
+native function receives Readline's key argument because Readline calls it, but
+it never sends, logs, or retains that value or the command line. The Unix socket
+receives cursor-grid numbers only.
 
 Each terminal loads its own non-exported integration guard. A Foot window
 opened through Super+Enter cannot inherit a stale "already loaded" state from
@@ -156,9 +151,10 @@ its parent process.
 
 Generic Wayland and Hyprland do not expose terminal caret coordinates.
 Quickshell's toplevel API provides window geometry rather than terminal grid
-state. The optional Bash integration closes that gap for Foot by requesting
-one standard numeric cursor-position report before each prompt and using
-Readline's own cursor index for every printable insertion.
+state. The optional Bash integration closes that gap for Foot by requesting one
+standard numeric cursor-position report before each prompt, then combining that
+anchor with Readline's post-insert cursor index. The result is the current block
+cursor cell without querying the terminal while the user is typing.
 
 Without the Bash integration, the origin is an approximation inside the active
 terminal window. By default it is 18 percent across the window and 52 logical
@@ -197,7 +193,7 @@ Settings persist in the plugin's entry in `~/.config/omarchy/shell.json`. The
 | `particleColorMode` | `omarchy` | `omarchy`, `accent`, `rainbow`, `fixed` |
 | `customParticleColor` | `#ffffff` | six or eight digit hex color |
 | `inputMode` | `activity` | `activity`, `socket`, `both` |
-| `activityResetDelay` | `30` | 10 to 250 ms |
+| `activityResetDelay` | `10` | 10 to 250 ms |
 | `caretTrackingEnabled` | `true` | boolean |
 | `terminalPaddingX` | `14` | 0 to 100 logical px |
 | `terminalPaddingY` | `14` | 0 to 100 logical px |
@@ -231,10 +227,10 @@ creation on the first character after an idle period.
 ## Privacy and performance
 
 The Wayland activity monitor exposes no key or pointer data. The socket accepts
-one event word and ignores everything except `burst`. Events
-are used immediately and are not written to disk, logged, transmitted, or kept
-as a history. The service stores only a lifetime burst counter for its status
-output. Disable and re-enable the plugin to reset it.
+the `burst` token and numeric terminal-grid positions from optional shell
+integrations. Events are used immediately and are not written to disk, logged,
+transmitted, or kept as a history. The service stores only a lifetime burst
+counter for its status output. Disable and re-enable the plugin to reset it.
 
 Each monitor uses one canvas driven by Qt's vsync-aligned `FrameAnimation`.
 Particles share that clock, expired particles are removed in batches, and new
