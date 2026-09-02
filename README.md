@@ -125,12 +125,11 @@ disabled. Manual bursts still work.
 the terminal component's `cursorFrame.x/y` directly. An external Wayland overlay
 cannot access Foot's caret. OmaPower's
 Bash integration wraps Readline's printable self-insert action. For each typed
-character, it asks Foot for its standard cursor and cell-metric reports and
-sends only six numbers: cursor row, cursor column, terminal rows, terminal
-columns, cell height, and cell width.
-Bash parks the terminal at the start of the input while the callback runs. The
-integration combines that physical row with the prompt's display width and
-Readline's post-insert cursor index to recover the visible cursor cell.
+character, it sends only four numbers: cursor row, cursor column, terminal rows,
+and terminal columns. The integration captures the terminal position once before
+each prompt, then combines that stable anchor with the prompt's display width and
+Readline's post-insert cursor index to recover the visible cursor cell. It never
+injects a terminal query while Readline is processing a keystroke.
 It does not send the character or command line. The installer switches OmaPower
 to `socket` mode so fast typing cannot be merged by Wayland's idle monitor.
 
@@ -140,11 +139,10 @@ Install it once, then open a new terminal:
 ~/.config/omarchy/plugins/io.github.nivekcode.omapower/scripts/install-bash-integration
 ```
 
-Readline invokes the hook after inserting a printable character. Foot reports
-its physical cell metrics, and the overlay converts them through the live client
-buffer scale. The burst starts at the center of Foot's visible block-cursor
-cell. Backspacing or moving the cursor before typing does not accumulate
-positioning error. The hook
+Readline invokes the hook after inserting a printable character. The overlay
+fits the reported terminal grid to the live Foot client geometry. The burst
+starts at the center of Foot's visible block-cursor cell. Backspacing or moving
+the cursor before typing does not accumulate positioning error. The hook
 does not emit particles for deletion, completion, bracketed paste, or non-ASCII
 input. It never sends the command line or typed character.
 
@@ -153,8 +151,8 @@ input. It never sends the command line or typed character.
 Generic Wayland and Hyprland do not expose terminal caret coordinates.
 Quickshell's toplevel API provides window geometry rather than terminal grid
 state. The optional Bash integration closes that gap for Foot by requesting
-the terminal's standard numeric cursor-position report for each printable
-Readline insertion.
+one standard numeric cursor-position report before each prompt and using
+Readline's own cursor index for every printable insertion.
 
 Without the Bash integration, the origin is an approximation inside the active
 terminal window. By default it is 18 percent across the window and 52 logical
