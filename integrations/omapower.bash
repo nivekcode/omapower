@@ -39,7 +39,7 @@ _omapower_report_caret() {
   tty_state=$(stty -g <&"$_OMAPOWER_TTY_FD" 2>/dev/null) || tty_state=
   [[ -n $tty_state ]] && stty -echo -icanon min 0 time 1 <&"$_OMAPOWER_TTY_FD" 2>/dev/null
   printf '\e[6n' >&"$_OMAPOWER_TTY_FD"
-  if IFS=';' read -r -d R -t 0.03 row column <&"$_OMAPOWER_TTY_FD"; then
+  if IFS=';' read -r -d R -t 0.20 row column <&"$_OMAPOWER_TTY_FD"; then
     row=${row##*$'\e['}
     if [[ $row =~ ^[0-9]+$ && $column =~ ^[0-9]+$ ]]; then
       _OMAPOWER_PROMPT_ROW=$row

@@ -9,7 +9,7 @@ Omarchy shell. It runs inside the existing `omarchy-shell` process and uses the
 full cyan, blue, indigo, purple, and white Omarchy logo palette by default.
 
 The plugin targets Omarchy 4.0.1's schema version 1 plugin API. The current
-plugin release is 0.6.0.
+plugin release is 0.6.1.
 
 ## What works
 
