@@ -398,12 +398,12 @@ Item {
     }
   }
 
-  // A 17 ms handoff crosses one complete 60 Hz refresh interval. This prevents
-  // the predicted Readline caret from appearing one cell ahead of Foot's
-  // visible cursor. Restarting still keeps rapid input at the newest cell.
+  // Wait until Foot has painted the newest cursor move. Restarting this short
+  // delay coalesces keys that arrive inside one redraw cycle, so a queued burst
+  // cannot remain attached to an older character while the cursor moves on.
   Timer {
     id: typedBurstDelay
-    interval: 17
+    interval: 25
     repeat: false
     onTriggered: {
       if (!root.typedBurstPending) return

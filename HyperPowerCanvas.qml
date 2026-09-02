@@ -7,7 +7,6 @@ Canvas {
   property var flashes: []
   property int activeParticleCount: 0
   property int activeFlashCount: 0
-  property int omarchyPaletteCursor: 0
   readonly property var omarchyPalette: [
     "#FFFFFF",
     "#DDF5FF",
@@ -32,9 +31,13 @@ Canvas {
     return t * t * (3 - 2 * t)
   }
 
-  function particleColor(settings, accentColor, index, count, paletteOffset) {
+  function particleColor(settings, accentColor, index, count) {
     if (settings.particleColorMode === "omarchy") {
-      var paletteIndex = (Math.max(0, Number(paletteOffset) || 0) + index) % omarchyPalette.length
+      var progress = count <= 1 ? 0.5 : index / (count - 1)
+      var paletteIndex = Math.max(0, Math.min(
+        omarchyPalette.length - 1,
+        Math.round(progress * (omarchyPalette.length - 1))
+      ))
       return omarchyPalette[paletteIndex]
     }
     if (settings.particleColorMode === "rainbow") {
@@ -52,7 +55,6 @@ Canvas {
 
     var next = particles.slice()
     var spreadScale = settings.particleSpread / 130
-    var paletteOffset = omarchyPaletteCursor
     for (var i = 0; i < count; i++) {
       var speed = settings.initialVelocity * (0.88 + Math.random() * 0.24)
       var distribution = count <= 1 ? 0 : i / (count - 1) * 2 - 1
@@ -68,12 +70,10 @@ Canvas {
         life: settings.particleLifetime * (0.88 + Math.random() * 0.24),
         size: settings.particleSize * (0.78 + Math.random() * 0.36),
         opacity: settings.opacity,
-        color: particleColor(settings, accentColor, i, count, paletteOffset),
+        color: particleColor(settings, accentColor, i, count),
         trail: settings.particleTrail
       })
     }
-    if (settings.particleColorMode === "omarchy")
-      omarchyPaletteCursor = (paletteOffset + count) % omarchyPalette.length
     particles = next
     activeParticleCount = next.length
 
@@ -84,7 +84,7 @@ Canvas {
         y: y,
         age: 0,
         life: 72,
-        color: particleColor(settings, accentColor, count, count + 1, paletteOffset),
+        color: particleColor(settings, accentColor, count, count + 1),
         opacity: settings.opacity
       })
       flashes = flashNext
