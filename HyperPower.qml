@@ -12,7 +12,7 @@ QtObject {
     opacity: 0.95,
     maximumActiveParticles: 160,
     particleTrail: false,
-    cursorFlash: true,
+    cursorFlash: false,
     shakeEnabled: false,
     shakeStrength: 2,
     shakeDuration: 90,

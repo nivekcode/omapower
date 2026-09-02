@@ -22,7 +22,13 @@ mode=$(omarchy-shell omapower set inputMode socket)
   printf 'Could not switch OmaPower to socket mode.\n' >&2
   exit 1
 }
+flash=$(omarchy-shell omapower set cursorFlash false)
+[[ $flash == 'false' ]] || {
+  printf 'Could not disable the OmaPower cursor flash.\n' >&2
+  exit 1
+}
 # Omarchy writes plugin settings asynchronously. Give that write time to land
 # before a caller restarts the shell.
 sleep 1
 printf 'OmaPower input mode set to socket for exact Bash tracking.\n'
+printf 'OmaPower cursor flash disabled.\n'

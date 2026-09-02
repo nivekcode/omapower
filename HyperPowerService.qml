@@ -24,6 +24,7 @@ Item {
   property int acceptedBursts: 0
   property int settingsReloadAttempts: 0
   property var pendingBurst: null
+  property bool typedBurstPending: false
   property var caretPositions: ({})
   property var lastBurstTarget: null
 
@@ -206,9 +207,9 @@ Item {
       var gridHeight = cellHeight * caret.rows
       var gridPaddingX = Math.min(settings.terminalPaddingX, Math.max(0, width - gridWidth))
       var gridPaddingY = Math.min(settings.terminalPaddingY, Math.max(0, height - gridHeight))
-      // The reported column is the cursor cell. Emit from the center of Foot's
-      // visible block cursor, not from the cell's left boundary.
-      var columnOffset = caret.anchor === "character" ? -0.5 : 0.5
+      // Hyperpower emits from cursorFrame.x. Match that leading edge instead of
+      // shifting half a cell into the block cursor.
+      var columnOffset = caret.anchor === "character" ? -1 : 0
       x = left + gridPaddingX + (caret.column - 1 + columnOffset) * cellWidth
       y = topY + gridPaddingY + (caret.row - 0.5) * cellHeight
       positionMode = metricScale > 0 ? "terminal-metrics" : "terminal-grid"
@@ -288,8 +289,10 @@ Item {
     }
     if (fields[0] === "type" && (fields.length === 5 || fields.length === 7)) {
       if (settings.inputMode !== "socket" && settings.inputMode !== "both") return
-      if (setCaret(fields[1], fields[2], fields[3], fields[4], "cursor", fields[5], fields[6]) === "ok")
-        requestBurst("bash-readline", true, null)
+      if (setCaret(fields[1], fields[2], fields[3], fields[4], "cursor", fields[5], fields[6]) === "ok") {
+        typedBurstPending = true
+        if (!typedBurstDelay.running) typedBurstDelay.start()
+      }
       return
     }
     if (token === "burst" && (settings.inputMode === "socket" || settings.inputMode === "both")) {
@@ -392,6 +395,20 @@ Item {
       root.pendingBurst = null
       if (pending)
         root.requestBurst(pending.source, pending.requireTerminal, pending.overridePosition, pending.retryCount)
+    }
+  }
+
+  // Hyperpower schedules particle creation after the terminal cursor-move
+  // frame and throttles it to 25 ms. Waiting here lets Foot paint the block
+  // cursor before the overlay uses the newest reported cell.
+  Timer {
+    id: typedBurstDelay
+    interval: 25
+    repeat: false
+    onTriggered: {
+      if (!root.typedBurstPending) return
+      root.typedBurstPending = false
+      root.requestBurst("bash-readline", true, null)
     }
   }
 

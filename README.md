@@ -140,9 +140,10 @@ Install it once, then open a new terminal:
 ```
 
 Readline invokes the hook after inserting a printable character. The overlay
-fits the reported terminal grid to the live Foot client geometry. The burst
-starts at the center of Foot's visible block-cursor cell. Backspacing or moving
-the cursor before typing does not accumulate positioning error. The hook
+fits the reported terminal grid to the live Foot client geometry, waits 25 ms
+for Foot to redraw, and starts the burst at the leading edge of the visible
+block cursor. Backspacing or moving the cursor before typing does not accumulate
+positioning error. The hook
 does not emit particles for deletion, completion, bracketed paste, or non-ASCII
 input. It never sends the command line or typed character.
 
@@ -184,7 +185,7 @@ Settings persist in the plugin's entry in `~/.config/omarchy/shell.json`. The
 | `opacity` | `0.95` | 0.05 to 1 |
 | `maximumActiveParticles` | `160` | 8 to 500 |
 | `particleTrail` | `false` | boolean |
-| `cursorFlash` | `true` | boolean |
+| `cursorFlash` | `false` | boolean |
 | `shakeEnabled` | `false` | boolean |
 | `shakeStrength` | `2` | 0 to 12 logical px |
 | `shakeDuration` | `90` | 20 to 400 ms |
@@ -214,10 +215,9 @@ an interrupted animation, so OmaPower does not do that.
 The default burst uses a narrow, balanced upward cone rather than a radial
 explosion. Every spark begins at the exact emitter coordinate, then uses
 frame-rate-independent velocity, drag, gravity, exponential alpha decay, and a
-final eased fade. A 72 ms cursor pulse makes the keystroke register before the
-particles travel. Particle cores stay square and align to physical pixels so
-the effect remains sharp at small sizes. Trails remain available as an option
-but are off by default.
+final eased fade. Particle cores stay square and align to physical pixels so
+the effect remains sharp at small sizes. Trails and the cursor flash remain
+available as options but are off by default.
 
 All active particles on a monitor share one vsync-driven framebuffer canvas.
 The overlay stays mapped while OmaPower is enabled, which avoids layer-surface

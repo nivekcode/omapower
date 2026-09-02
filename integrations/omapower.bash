@@ -3,8 +3,8 @@
 # leave Bash.
 
 [[ $- == *i* ]] || return 0
-[[ ${OMAPOWER_BASH_INTEGRATION_LOADED:-0} == 6 ]] && return 0
-export OMAPOWER_BASH_INTEGRATION_LOADED=6
+[[ ${OMAPOWER_BASH_INTEGRATION_LOADED:-0} == 7 ]] && return 0
+export OMAPOWER_BASH_INTEGRATION_LOADED=7
 
 _OMAPOWER_SOCKET=${XDG_RUNTIME_DIR:-/run/user/$UID}/omapower.sock
 _OMAPOWER_ROWS=${LINES:-1}
@@ -101,6 +101,18 @@ _omapower_after_insert() {
   _omapower_send "type $row $column $_OMAPOWER_ROWS $_OMAPOWER_COLUMNS"
 }
 
+_omapower_insert_ascii() {
+  local code=$1 char hex before after point=${READLINE_POINT:-0}
+  local LC_ALL=C
+  printf -v hex '%02x' "$code"
+  printf -v char '%b' "\\x$hex"
+  before=${READLINE_LINE:0:point}
+  after=${READLINE_LINE:point}
+  READLINE_LINE=$before$char$after
+  READLINE_POINT=$((point + 1))
+  _omapower_after_insert
+}
+
 if [[ ";${PROMPT_COMMAND[*]};" != *';_omapower_report_caret;'* ]]; then
   if declare -p PROMPT_COMMAND 2>/dev/null | grep -q '^declare -a'; then
     PROMPT_COMMAND+=( _omapower_report_caret )
@@ -111,15 +123,12 @@ fi
 
 _omapower_connect || true
 
-# A macro uses Readline's own quoted-insert, then runs our callback. This keeps
-# normal editing and undo behavior. The callback combines the prompt anchor with
-# Readline's post-insert cursor index to recover the visible cursor cell without
-# sending a terminal query while Readline is processing input.
+# Insert printable ASCII directly through Readline's bind-x API. Avoiding the
+# quoted-insert macro removes the extra escape-sequence cycle that made Foot's
+# block cursor flicker while typing.
 for ((_omapower_code = 32; _omapower_code <= 126; _omapower_code++)); do
-  printf -v _omapower_binding '"\\x%02x":"\\C-v\\x%02x\\e[99~"' "$_omapower_code" "$_omapower_code"
-  bind -m emacs-standard "$_omapower_binding"
-  bind -m vi-insert "$_omapower_binding"
+  printf -v _omapower_binding '"\\x%02x":_omapower_insert_ascii %d' "$_omapower_code" "$_omapower_code"
+  bind -m emacs-standard -x "$_omapower_binding"
+  bind -m vi-insert -x "$_omapower_binding"
 done
-bind -m emacs-standard -x '"\e[99~":_omapower_after_insert'
-bind -m vi-insert -x '"\e[99~":_omapower_after_insert'
 unset _omapower_code _omapower_binding
