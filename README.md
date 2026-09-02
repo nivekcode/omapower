@@ -4,25 +4,38 @@
 
 # OmaPower
 
-OmaPower adds small Hyperpower-style particle bursts to terminal typing in the
-Omarchy shell. It runs inside the existing `omarchy-shell` process and uses the
-full cyan, blue, indigo, purple, and white Omarchy logo palette by default.
+OmaPower brings the satisfying particle bursts of
+[Hyperpower](https://github.com/vercel/hyperpower) to terminals on Omarchy.
+Every printable key launches a compact spray of pixels from the live block
+cursor. The default colors move through the white, cyan, blue, indigo, and
+purple shades of the Omarchy logo.
+
+The effect runs as a click-through Wayland overlay inside `omarchy-shell`. With
+the native Bash and Foot integration, particles follow the real terminal cell
+through wrapped lines, directory changes, new prompts, and scaled monitors.
+OmaPower never receives the character or command being typed, and its animation
+clock stops when no particles are active.
+
+<p align="center">
+  <img src="assets/omapower-preview.gif" alt="OmaPower particles following the Foot terminal cursor while typing" width="900">
+</p>
+<p align="center"><sub>Recorded in Foot with OmaPower's default motion and Omarchy color palette.</sub></p>
 
 The plugin targets Omarchy 4.0.1's schema version 1 plugin API. The current
 plugin release is 0.6.5.
 
-## What works
+## Highlights
 
-- Three to eight animated particles per burst, with randomized size, direction,
-  speed, lifetime, gravity, fade, and color
-- Automatic Bash-compatible input activity through Wayland's idle-notify
-  protocol
-- Foot cursor-grid positioning through an optional native Bash Readline hook
+- Exact Foot cursor positioning through the native Bash Readline hook
+- Prompt-aware cleanup, so a finished command cannot leave particles on the
+  wrong terminal row
+- Adjustable particle count, size, spread, speed, gravity, lifetime, and fade
+- Full Omarchy logo, accent, rainbow, and fixed color modes
 - Foot, Ghostty, Kitty, and Alacritty focus filtering through Quickshell's
   native Hyprland integration
 - One click-through overlay per monitor, using Wayland logical coordinates
-- Omarchy logo, accent, rainbow, and fixed color modes
-- A hard particle limit and no animation loop while idle
+- Bash-compatible fallback detection through Wayland's idle-notify protocol
+- A hard particle limit with no animation loop while idle
 - Optional visual shake of the particle field
 - Direct controls through Omarchy shell IPC
 
