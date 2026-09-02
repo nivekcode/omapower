@@ -140,7 +140,7 @@ Install it once, then open a new terminal:
 ```
 
 Readline invokes the hook after inserting a printable character. The overlay
-fits the reported terminal grid to the live Foot client geometry, waits 25 ms
+fits the reported terminal grid to the live Foot client geometry, waits 8 ms
 after the newest cursor move for Foot to redraw, and starts the burst at the
 leading edge of the visible block cursor. Keys inside the same redraw cycle
 collapse to the newest position. Backspacing or moving the cursor before typing

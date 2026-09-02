@@ -398,12 +398,12 @@ Item {
     }
   }
 
-  // Wait until Foot has painted the newest cursor move. Restarting this short
-  // delay coalesces keys that arrive inside one redraw cycle, so a queued burst
-  // cannot remain attached to an older character while the cursor moves on.
+  // Give Foot one short compositor handoff to paint the newest cursor move.
+  // Restarting the timer still coalesces exceptionally fast keys at the latest
+  // cursor cell without adding a noticeable delay to normal typing.
   Timer {
     id: typedBurstDelay
-    interval: 25
+    interval: 8
     repeat: false
     onTriggered: {
       if (!root.typedBurstPending) return
