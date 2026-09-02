@@ -9,7 +9,7 @@ Omarchy shell. It runs inside the existing `omarchy-shell` process and uses the
 full cyan, blue, indigo, purple, and white Omarchy logo palette by default.
 
 The plugin targets Omarchy 4.0.1's schema version 1 plugin API. The current
-plugin release is 0.6.3.
+plugin release is 0.6.4.
 
 ## What works
 
@@ -156,6 +156,8 @@ the leading edge of the reported block cursor. Keys inside one redraw cycle
 collapse to the newest position. The native function receives Readline's key
 argument because Readline calls it, but it never sends, logs, or retains that
 value or the command line. The Unix socket receives cursor-grid numbers only.
+Prompt color and formatting codes are removed using bytewise parsing, so the
+system locale cannot count invisible Starship control sequences as cursor cells.
 
 Each terminal loads its own non-exported integration guard. A Foot window
 opened through Super+Enter cannot inherit a stale "already loaded" state from

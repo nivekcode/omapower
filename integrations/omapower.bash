@@ -49,7 +49,10 @@ _omapower_report_caret() {
   [[ -n $tty_state ]] && stty "$tty_state" <&"$_OMAPOWER_TTY_FD" 2>/dev/null
 
   rendered=${PS1@P}
-  plain=$(printf '%s' "$rendered" | sed -E $'s/\x1B\\][^\x07]*(\x07|\x1B\\\\)//g; s/\x1B\\[[0-9;?]*[ -\\/]*[@-~]//g; s/[\x01\x02]//g')
+  # ANSI byte ranges must use bytewise collation. Under locales such as
+  # en_US.UTF-8, sed can otherwise count Starship's hidden color sequences as
+  # visible prompt cells and move the particle origin far to the right.
+  plain=$(printf '%s' "$rendered" | LC_ALL=C sed -E $'s/\x1B\\][^\x07]*(\x07|\x1B\\\\)//g; s/\x1B\\[[0-9;?]*[ -\\/]*[@-~]//g; s/[\x01\x02]//g')
   suffix=$plain
   while [[ $suffix == *$'\n'* ]]; do
     suffix=${suffix#*$'\n'}
