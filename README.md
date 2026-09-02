@@ -4,8 +4,7 @@
 
 # OmaPower
 
-OmaPower brings the satisfying particle bursts of
-[Hyperpower](https://github.com/vercel/hyperpower) to terminals on Omarchy.
+OmaPower brings satisfying particle bursts to terminals on Omarchy.
 Every printable key launches a compact spray of pixels from the live block
 cursor. The default colors move through the white, cyan, blue, indigo, and
 purple shades of the Omarchy logo.
@@ -143,10 +142,9 @@ disabled. Manual bursts still work.
 
 ### Native Bash and Foot cursor integration
 
-[Hyperpower](https://github.com/vercel/hyperpower) runs inside Hyper and receives
-the terminal component's `cursorFrame.x/y` directly. An external Wayland overlay
-cannot access Foot's caret. OmaPower's Bash integration loads a small native
-Readline function compiled on the local machine. That function calls Readline's
+An external Wayland overlay cannot access Foot's caret. OmaPower's Bash
+integration loads a small native Readline function compiled on the local
+machine. That function calls Readline's
 own `rl_insert`, reads the resulting cursor index, and sends numeric cursor and
 terminal-grid geometry plus Foot's process ID. It does not run a shell callback
 or rewrite `READLINE_LINE` for each key. This keeps Foot's block cursor on the
@@ -276,7 +274,7 @@ region and never requests keyboard focus.
 
 ```bash
 omarchy plugin validate .
-qmllint HyperPower.qml HyperPowerService.qml HyperPowerOverlay.qml HyperPowerCanvas.qml
+qmllint ./*.qml
 shellcheck scripts/omapowerctl
 ```
 
