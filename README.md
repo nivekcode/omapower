@@ -9,7 +9,7 @@ Omarchy shell. It runs inside the existing `omarchy-shell` process and uses the
 active Omarchy accent color by default.
 
 The plugin targets Omarchy 4.0.1's schema version 1 plugin API. The current
-plugin release is 0.4.0.
+plugin release is 0.4.1.
 
 ## What works
 
@@ -142,7 +142,8 @@ Install it once, then open a new terminal:
 
 Readline invokes the hook after inserting a printable character. Foot reports
 its physical cell metrics, and the overlay converts them through the live client
-buffer scale. Backspacing or moving the cursor before typing does not accumulate
+buffer scale. The burst starts at the center of Foot's visible block-cursor
+cell. Backspacing or moving the cursor before typing does not accumulate
 positioning error. The hook
 does not emit particles for deletion, completion, bracketed paste, or non-ASCII
 input. It never sends the command line or typed character.

@@ -206,7 +206,9 @@ Item {
       var gridHeight = cellHeight * caret.rows
       var gridPaddingX = Math.min(settings.terminalPaddingX, Math.max(0, width - gridWidth))
       var gridPaddingY = Math.min(settings.terminalPaddingY, Math.max(0, height - gridHeight))
-      var columnOffset = caret.anchor === "character" ? 0.5 : 0
+      // The reported column is the cursor cell. Emit from the center of Foot's
+      // visible block cursor, not from the cell's left boundary.
+      var columnOffset = caret.anchor === "character" ? -0.5 : 0.5
       x = left + gridPaddingX + (caret.column - 1 + columnOffset) * cellWidth
       y = topY + gridPaddingY + (caret.row - 0.5) * cellHeight
       positionMode = metricScale > 0 ? "terminal-metrics" : "terminal-grid"
@@ -215,7 +217,9 @@ Item {
         cellWidth: cellWidth,
         cellHeight: cellHeight,
         paddingX: gridPaddingX,
-        paddingY: gridPaddingY
+        paddingY: gridPaddingY,
+        cursorLeft: left + gridPaddingX + (caret.column - 1) * cellWidth,
+        cursorTop: topY + gridPaddingY + (caret.row - 1) * cellHeight
       }
     }
     return {

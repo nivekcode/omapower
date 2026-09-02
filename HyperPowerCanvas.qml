@@ -122,7 +122,7 @@ Canvas {
       var flashHeight = 3.5 + 2.5 * smoothstep(0, 1, flashProgress)
       context.fillStyle = flash.color
       context.globalAlpha = flashFade
-      context.fillRect(Math.round(flash.x), Math.round(flash.y - flashHeight / 2), 1.5, flashHeight)
+      context.fillRect(flash.x - 0.75, flash.y - flashHeight / 2, 1.5, flashHeight)
     }
 
     for (var particleIndex = 0; particleIndex < particles.length; particleIndex++) {
