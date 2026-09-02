@@ -4,7 +4,8 @@ set -euo pipefail
 plugin_dir=${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins/io.github.nivekcode.omapower
 integration="$plugin_dir/integrations/omapower.bash"
 native_source="$plugin_dir/native/omapower-readline.c"
-native_output="$plugin_dir/native/omapower-readline.so"
+native_dir=${XDG_CACHE_HOME:-$HOME/.cache}/omapower
+native_output="$native_dir/omapower-readline.so"
 bashrc=${HOME}/.bashrc
 source_line="source \"$integration\""
 
@@ -12,7 +13,8 @@ source_line="source \"$integration\""
 [[ -f $native_source ]] || { printf 'OmaPower native source not found: %s\n' "$native_source" >&2; exit 1; }
 command -v cc >/dev/null || { printf 'A C compiler is required to install the native Readline hook.\n' >&2; exit 1; }
 
-native_tmp=$(mktemp "${plugin_dir}/native/.omapower-readline.so.XXXXXX")
+mkdir -p "$native_dir"
+native_tmp=$(mktemp "${native_dir}/.omapower-readline.so.XXXXXX")
 trap 'rm -f "$native_tmp"' EXIT
 cc -fPIC -shared -O2 -Wall -Wextra -Werror \
   -I/usr/include/bash -I/usr/include/bash/builtins -I/usr/include/bash/include \

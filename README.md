@@ -135,13 +135,14 @@ Install it once, then open a new terminal:
 ~/.config/omarchy/plugins/io.github.nivekcode.omapower/scripts/install-bash-integration
 ```
 
-The installer builds `native/omapower-readline.so` against the installed Bash
-headers and selects socket mode. After each native self-insert, the overlay waits
-25 ms for Foot to paint and starts the burst at the leading edge of the reported
-block cursor. Keys inside one redraw cycle collapse to the newest position. The
-native function receives Readline's key argument because Readline calls it, but
-it never sends, logs, or retains that value or the command line. The Unix socket
-receives cursor-grid numbers only.
+The installer builds `~/.cache/omapower/omapower-readline.so` against the
+installed Bash headers and selects socket mode. Keeping the compiled module out
+of the plugin directory prevents an installation-time shell reload. After each
+native self-insert, the overlay waits 25 ms for Foot to paint and starts the
+burst at the leading edge of the reported block cursor. Keys inside one redraw
+cycle collapse to the newest position. The native function receives Readline's
+key argument because Readline calls it, but it never sends, logs, or retains that
+value or the command line. The Unix socket receives cursor-grid numbers only.
 
 Each terminal loads its own non-exported integration guard. A Foot window
 opened through Super+Enter cannot inherit a stale "already loaded" state from
