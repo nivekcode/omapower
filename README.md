@@ -6,10 +6,10 @@
 
 OmaPower adds small Hyperpower-style particle bursts to terminal typing in the
 Omarchy shell. It runs inside the existing `omarchy-shell` process and uses the
-active Omarchy accent color by default.
+full cyan, blue, indigo, purple, and white Omarchy logo palette by default.
 
 The plugin targets Omarchy 4.0.1's schema version 1 plugin API. The current
-plugin release is 0.4.1.
+plugin release is 0.5.0.
 
 ## What works
 
@@ -22,7 +22,7 @@ plugin release is 0.4.1.
 - Foot, Ghostty, Kitty, and Alacritty focus filtering through Quickshell's
   native Hyprland integration
 - One click-through overlay per monitor, using Wayland logical coordinates
-- Accent, rainbow, and fixed color modes
+- Omarchy logo, accent, rainbow, and fixed color modes
 - A hard particle limit and no animation loop while idle
 - Optional visual shake of the particle field
 - Direct controls through Omarchy shell IPC
@@ -190,7 +190,7 @@ Settings persist in the plugin's entry in `~/.config/omarchy/shell.json`. The
 | `shakeEnabled` | `false` | boolean |
 | `shakeStrength` | `2` | 0 to 12 logical px |
 | `shakeDuration` | `90` | 20 to 400 ms |
-| `particleColorMode` | `accent` | `accent`, `rainbow`, `fixed` |
+| `particleColorMode` | `omarchy` | `omarchy`, `accent`, `rainbow`, `fixed` |
 | `customParticleColor` | `#ffffff` | six or eight digit hex color |
 | `inputMode` | `activity` | `activity`, `socket`, `both` |
 | `activityResetDelay` | `30` | 10 to 250 ms |

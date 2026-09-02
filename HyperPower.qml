@@ -16,7 +16,7 @@ QtObject {
     shakeEnabled: false,
     shakeStrength: 2,
     shakeDuration: 90,
-    particleColorMode: "accent",
+    particleColorMode: "omarchy",
     customParticleColor: "#ffffff",
     inputMode: "activity",
     activityResetDelay: 30,
@@ -64,7 +64,7 @@ QtObject {
       shakeEnabled: boolean(raw.shakeEnabled, d.shakeEnabled),
       shakeStrength: number(raw.shakeStrength, d.shakeStrength, 0, 12),
       shakeDuration: Math.round(number(raw.shakeDuration, d.shakeDuration, 20, 400)),
-      particleColorMode: ["accent", "rainbow", "fixed"].indexOf(String(raw.particleColorMode || "")) >= 0
+      particleColorMode: ["omarchy", "accent", "rainbow", "fixed"].indexOf(String(raw.particleColorMode || "")) >= 0
         ? String(raw.particleColorMode) : d.particleColorMode,
       customParticleColor: /^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/.test(String(raw.customParticleColor || ""))
         ? String(raw.customParticleColor) : d.customParticleColor,
