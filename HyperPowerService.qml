@@ -398,12 +398,12 @@ Item {
     }
   }
 
-  // Give Foot one short compositor handoff to paint the newest cursor move.
-  // Restarting the timer still coalesces exceptionally fast keys at the latest
-  // cursor cell without adding a noticeable delay to normal typing.
+  // A 17 ms handoff crosses one complete 60 Hz refresh interval. This prevents
+  // the predicted Readline caret from appearing one cell ahead of Foot's
+  // visible cursor. Restarting still keeps rapid input at the newest cell.
   Timer {
     id: typedBurstDelay
-    interval: 8
+    interval: 17
     repeat: false
     onTriggered: {
       if (!root.typedBurstPending) return
