@@ -21,7 +21,7 @@ clock stops when no particles are active.
 <p align="center"><sub>Recorded in Foot with OmaPower's default motion and Omarchy color palette.</sub></p>
 
 The plugin targets Omarchy 4.0.1's schema version 1 plugin API. The current
-plugin release is 0.6.5.
+plugin release is 0.6.6.
 
 ## Highlights
 
@@ -37,6 +37,16 @@ plugin release is 0.6.5.
 - A hard particle limit with no animation loop while idle
 - Optional visual shake of the particle field
 - Direct controls through Omarchy shell IPC
+
+## Requirements
+
+The default activity mode needs only Omarchy 4.0.1 or a compatible Quattro
+release. It uses the Wayland idle-notify support already available in the
+Omarchy shell.
+
+Exact cursor tracking is optional. The Bash integration requires Foot, GCC,
+and the development headers included with Arch's `bash` package. The Zsh
+integration requires Zsh's bundled `zsh/net/socket` module.
 
 ## Install
 
@@ -59,7 +69,26 @@ omarchy plugin enable io.github.nivekcode.omapower
 omarchy-shell shell rescanPlugins
 ```
 
-OmaPower does not edit Omarchy, Hyprland, or terminal configuration.
+The standard plugin install does not edit Omarchy, Hyprland, or terminal
+configuration. The optional Bash integration described below adds one marked
+line to `.bashrc` only when you run its installer. It makes a timestamped
+backup first and compiles only the C source included in this repository. It
+does not use the network or elevated privileges.
+
+## Remove
+
+If you installed the optional Bash integration, remove it before removing the
+plugin. The uninstaller deletes only OmaPower's marked `.bashrc` entry and
+cached native module. It backs up `.bashrc` before editing it.
+
+```bash
+~/.config/omarchy/plugins/io.github.nivekcode.omapower/scripts/uninstall-bash-integration
+omarchy plugin remove io.github.nivekcode.omapower
+omarchy restart shell
+```
+
+The uninstaller is safe to run when the integration is not installed. It does
+not delete earlier `.bashrc` backups.
 
 ## Test and control
 
@@ -275,7 +304,7 @@ region and never requests keyboard focus.
 ```bash
 omarchy plugin validate .
 qmllint ./*.qml
-shellcheck scripts/omapowerctl
+shellcheck scripts/* integrations/*
 ```
 
 Use `omarchy-shell shell rescanPlugins` after copying a new local checkout if

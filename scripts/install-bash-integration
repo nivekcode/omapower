@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-plugin_dir=${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins/io.github.nivekcode.omapower
+plugin_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
 integration="$plugin_dir/integrations/omapower.bash"
 native_source="$plugin_dir/native/omapower-readline.c"
 native_dir=${XDG_CACHE_HOME:-$HOME/.cache}/omapower

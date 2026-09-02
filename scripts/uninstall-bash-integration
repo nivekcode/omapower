@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+plugin_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
+integration="$plugin_dir/integrations/omapower.bash"
+native_dir=${XDG_CACHE_HOME:-$HOME/.cache}/omapower
+native_output="$native_dir/omapower-readline.so"
+bashrc=${HOME}/.bashrc
+marker="# OmaPower terminal caret integration"
+source_line="source \"$integration\""
+
+if [[ -L $bashrc ]]; then
+  bashrc_target=$(readlink -f -- "$bashrc")
+else
+  bashrc_target=$bashrc
+fi
+
+if [[ -f $bashrc_target ]] && grep -Fqx -e "$marker" -e "$source_line" "$bashrc_target"; then
+  backup="${bashrc}.omapower-backup.$(date +%Y%m%d%H%M%S)"
+  tmp=$(mktemp "${bashrc_target}.omapower-remove.XXXXXX")
+  trap 'rm -f "$tmp"' EXIT
+
+  cp -p "$bashrc_target" "$backup"
+  awk -v marker="$marker" -v source_line="$source_line" \
+    '$0 != marker && $0 != source_line { print }' "$bashrc_target" > "$tmp"
+  chmod --reference="$bashrc_target" "$tmp"
+  mv "$tmp" "$bashrc_target"
+  trap - EXIT
+  printf 'Removed the OmaPower Bash integration. Backup: %s\n' "$backup"
+else
+  printf 'OmaPower Bash integration is not present in %s.\n' "$bashrc"
+fi
+
+if [[ -f $native_output ]]; then
+  rm -f "$native_output"
+  rmdir "$native_dir" 2>/dev/null || true
+  printf 'Removed the cached OmaPower native module.\n'
+else
+  printf 'OmaPower native module is not present in %s.\n' "$native_dir"
+fi
